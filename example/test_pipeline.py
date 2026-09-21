@@ -28,7 +28,7 @@ def copy_matches_source(case) -> Status:
     expected_lines = case["line_count"]
     copy_line_count = len(copy.read_text().splitlines())
     if copy_line_count != expected_lines:
-        return Status.WAIT("incomplete")
+        return Status.WAIT(f"{copy_line_count}/{expected_lines}")
     return Status.PASS(f"{copy_line_count}/{expected_lines}")
 
 
@@ -56,6 +56,7 @@ def test_pipeline():
         {"name": "waiting-on-source"},
         {"name": "waiting-on-count"},
         {"name": "waiting-on-copy"},
+        {"name": "partial-copy"},
         {"name": "waiting-on-summary"},
         {"name": "complete"},
     ]
