@@ -3,7 +3,7 @@ import sys
 
 from .status import Status
 
-_GLYPH: dict[Status, str] = {Status.PASS: "✓", Status.WAIT: "!", Status.FAIL: "✗"}
+_GLYPH: dict[Status, str] = {Status.PASS: "+", Status.WAIT: "!", Status.FAIL: "X"}
 _COLOR: dict[Status, str] = {
     Status.PASS: "\033[32m",
     Status.WAIT: "\033[33m",
@@ -11,7 +11,7 @@ _COLOR: dict[Status, str] = {
 }
 _RESET = "\033[0m"
 _GUTTER = "  "
-_CELL_PREFIX_WIDTH = len("✓ ")  # every cell is one glyph, then a space, then the word
+_CELL_PREFIX_WIDTH = len("+ ")  # every cell is one glyph, then a space, then the word
 
 
 def color_enabled() -> bool:

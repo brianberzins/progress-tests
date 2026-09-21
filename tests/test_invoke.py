@@ -195,7 +195,7 @@ def test_invoke_a_three_step_migration_across_inputs_at_different_stages(capsys)
     lines = {line.split()[0]: line for line in out.splitlines()[1:]}
     assert lines["not-started"].count("!") == 1
     assert lines["in-progress"].count("!") == 1
-    assert lines["fully-migrated"].count("✓") == 3
+    assert lines["fully-migrated"].count("+") == 3
 
 
 def test_invoke_prints_a_header_naming_input_and_each_step(capsys):
@@ -216,14 +216,14 @@ def test_invoke_prints_a_header_naming_input_and_each_step(capsys):
 
 
 def test_invoke_shows_the_fail_glyph_for_a_failed_step(capsys):
-    @step("EXISTS")
-    def exists(case):
+    @step("CHECK")
+    def check(case):
         return Status.FAIL
 
     with pytest.raises(AssertionError):
-        invoke([exists], [{"name": "instance-a"}])
+        invoke([check], [{"name": "instance-a"}])
 
-    assert "✗" in capsys.readouterr().out
+    assert "X" in capsys.readouterr().out
 
 
 def test_invoke_leaves_unreached_steps_blank_not_passing_or_failing(capsys):
@@ -239,8 +239,8 @@ def test_invoke_leaves_unreached_steps_blank_not_passing_or_failing(capsys):
 
     row = capsys.readouterr().out.splitlines()[1]
     assert "!" in row
-    assert "✓" not in row
-    assert "✗" not in row
+    assert "+" not in row
+    assert "X" not in row
 
 
 def test_invoke_output_has_no_ansi_codes_when_stdout_is_not_a_tty(capsys, monkeypatch):
@@ -358,4 +358,4 @@ def test_invoke_reports_fail_when_a_step_mutates_case_directly(capsys):
     with pytest.raises(AssertionError):
         invoke([sneaky], [{"name": "instance-a"}])
 
-    assert "✗" in capsys.readouterr().out
+    assert "X" in capsys.readouterr().out

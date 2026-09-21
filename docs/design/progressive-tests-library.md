@@ -112,9 +112,12 @@ def test_migration():
 - Input row label is `input["name"]`, falling back to `input[{i}]`
   (by position) when `"name"` is absent.
 - Renders one color-coded table to stdout: one row per input, one
-  column per `STEP_NAME` in first-seen order, using the existing
-  standard's glyphs (`✓`/`!`/`✗`, single-width) and ANSI coloring,
-  column-aligned.
+  column per `STEP_NAME` in first-seen order, and ANSI coloring,
+  column-aligned. Glyphs are plain ASCII (`+`/`!`/`X`) rather than the
+  shared standard's `✓`/`!`/`✗` — those aren't reliably single-width
+  across terminals/fonts despite looking that way in isolation (found
+  by a real misaligned table, not a theoretical concern), so this
+  library diverges from the standard's suggested glyphs on purpose.
 - Color auto-detects and is **not configurable**: off if
   `sys.stdout.isatty()` is false, or `NO_COLOR`/`CI` env vars are set;
   on otherwise.
