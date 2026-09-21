@@ -1,13 +1,13 @@
 import os
 import sys
 
-from .status import Status
+from .status import Status, _Kind
 
-_GLYPH: dict[Status, str] = {Status.PASS: "+", Status.WAIT: "!", Status.FAIL: "X"}
-_COLOR: dict[Status, str] = {
-    Status.PASS: "\033[32m",
-    Status.WAIT: "\033[33m",
-    Status.FAIL: "\033[31m",
+_GLYPH: dict[_Kind, str] = {_Kind.PASS: "+", _Kind.WAIT: "!", _Kind.FAIL: "X"}
+_COLOR: dict[_Kind, str] = {
+    _Kind.PASS: "\033[32m",
+    _Kind.WAIT: "\033[33m",
+    _Kind.FAIL: "\033[31m",
 }
 _RESET = "\033[0m"
 _GUTTER = "  "
@@ -49,8 +49,7 @@ def render_table(
 
 
 def _cell_text(status: Status) -> str:
-    word = status.message if status.message else status.name.lower()
-    return f"{_GLYPH[status]} {word}"
+    return f"{_GLYPH[status.kind]} {status.message}"
 
 
 def _render_cell(status: Status | None, width: int, use_color: bool) -> str:
@@ -59,4 +58,4 @@ def _render_cell(status: Status | None, width: int, use_color: bool) -> str:
     text = f"{_cell_text(status):<{width}}"
     if not use_color:
         return text
-    return f"{_COLOR[status]}{text}{_RESET}"
+    return f"{_COLOR[status.kind]}{text}{_RESET}"

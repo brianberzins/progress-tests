@@ -3,7 +3,7 @@ from types import MappingProxyType
 from typing import Any
 
 from .render import color_enabled, render_table
-from .status import Status
+from .status import Status, _Kind
 from .step import Case, Step
 
 
@@ -12,17 +12,6 @@ def invoke(
     inputs: list[Case] | None = None,
     fail_on_wait: bool = False,
 ) -> None:
-    """Run `steps`, in order, against each input in `inputs`.
-
-    Each input is evaluated independently: steps run in order until one
-    doesn't return `Status.PASS`, and any steps after it are left blank
-    for that input rather than evaluated.
-
-    Renders a single color-coded table (one row per input, one column
-    per step) to stdout, then raises `AssertionError` if any input's
-    evaluation stopped on `Status.FAIL`, or `Status.WAIT` when
-    `fail_on_wait=True`.
-    """
     step_names = _validate_steps(steps)
     if inputs is None:
         inputs = [{}]
@@ -34,7 +23,7 @@ def invoke(
     for label, case in zip(labels, inputs, strict=True):
         statuses, outcome = _evaluate(steps, case)
         rows.append((label, statuses))
-        if outcome == Status.FAIL or (outcome == Status.WAIT and fail_on_wait):
+        if outcome.kind == _Kind.FAIL or (outcome.kind == _Kind.WAIT and fail_on_wait):
             failing_labels.append(label)
 
     print(render_table(step_names, rows, use_color=color_enabled()))
@@ -52,14 +41,14 @@ def _evaluate(
 ) -> tuple[dict[str, Status], Status]:
     case: dict[str, Any] = dict(original_case)
     statuses: dict[str, Status] = {}
-    outcome = Status.PASS
+    outcome = Status.PASS("no steps")
     for s in steps:
         # A step gets a read-only view of the accumulated case -- mutating
         # it directly raises (caught by @step, reported as Status.FAIL)
         # rather than silently bypassing the overwrite check in _merge.
         outcome, data = s(MappingProxyType(case))
         statuses[s.step_name] = outcome
-        if outcome != Status.PASS:
+        if outcome.kind != _Kind.PASS:
             break
         _merge(case, data, s.step_name)
     return statuses, outcome

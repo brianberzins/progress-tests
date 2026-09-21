@@ -18,30 +18,12 @@ _POSITIONAL_KINDS = (
 
 
 class Step(Protocol):
-    """A function decorated with `@step`: callable with a read-only
-    `case`, and carrying the `step_name` it was registered under."""
-
     step_name: str
 
     def __call__(self, case: Case) -> tuple[Status, dict[str, Any]]: ...
 
 
 def step(name: str) -> Callable[[StepFunction], Step]:
-    """Decorate a function as one progressive-test step named `name`.
-
-    The wrapped function must take exactly one positional argument (the
-    input, a read-only mapping) and is expected to return a `Status`,
-    optionally paired with a `dict` of data to make available to later
-    steps for this input, e.g. `return Status.PASS, {"key": value}`.
-    Mutating `case` directly has no effect on later steps and is not
-    how a step is meant to pass data forward — see `invoke()`.
-
-    Any exception raised, or any return value that isn't one of those
-    two shapes, is reported as `Status.FAIL` (with no data) rather than
-    propagating or defaulting to anything else — an unimplemented or
-    broken check is always a failure, never a silent "not done yet".
-    """
-
     def decorator(func: StepFunction) -> Step:
         params = list(inspect.signature(func).parameters.values())
         if len(params) != 1 or params[0].kind not in _POSITIONAL_KINDS:

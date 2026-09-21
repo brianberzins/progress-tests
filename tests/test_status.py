@@ -1,34 +1,26 @@
+import pytest
+
 from progress_tests import Status
+from progress_tests.status import _Kind
 
 
-def test_status_has_three_distinct_values():
-    assert len({Status.PASS, Status.WAIT, Status.FAIL}) == 3
+def test_status_has_three_distinct_kinds():
+    assert len({_Kind.PASS, _Kind.WAIT, _Kind.FAIL}) == 3
 
 
-def test_status_has_no_message_by_default():
-    assert Status.PASS.message is None
-    assert Status.WAIT.message is None
-    assert Status.FAIL.message is None
+def test_status_requires_a_message():
+    assert Status.PASS("ok").message == "ok"
+    assert Status.WAIT("waiting").message == "waiting"
+    assert Status.FAIL("boom").message == "boom"
 
 
-def test_status_is_callable_to_attach_a_message():
-    waiting = Status.WAIT("waiting on backup")
-
-    assert waiting.message == "waiting on backup"
-
-
-def test_status_with_a_message_still_equals_the_plain_status_of_the_same_kind():
-    assert Status.WAIT("waiting on backup") == Status.WAIT
-    assert Status.WAIT("waiting on backup") != Status.PASS
-
-
-def test_status_with_a_message_still_hashes_like_the_plain_status():
-    assert hash(Status.WAIT("waiting on backup")) == hash(Status.WAIT)
+def test_status_cannot_be_built_without_a_message():
+    with pytest.raises(TypeError):
+        Status.PASS()
 
 
 def test_status_has_no_detail_by_default():
-    assert Status.FAIL.message is None
-    assert Status.FAIL.detail is None
+    assert Status.FAIL("boom").detail is None
 
 
 def test_status_can_attach_a_detail_alongside_a_message():
@@ -36,3 +28,11 @@ def test_status_can_attach_a_detail_alongside_a_message():
 
     assert failed.message == "bucket missing"
     assert failed.detail == "full diagnostic dump"
+
+
+def test_two_statuses_of_the_same_kind_and_message_are_equal():
+    assert Status.WAIT("waiting on backup") == Status.WAIT("waiting on backup")
+
+
+def test_two_statuses_with_different_messages_are_not_equal():
+    assert Status.WAIT("waiting on backup") != Status.WAIT("waiting on restore")

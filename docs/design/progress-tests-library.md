@@ -44,14 +44,12 @@ plus everything decided beyond it.
   No confidence/sampling annotation for checks that only sample live
   state (e.g. a high-volume log stream) — the check author's own
   return value is the final word on what "pass" means for their check.
-  Each kind can carry an optional message and detail; see "Status
-  messages" below — this is display metadata about the kind, not a
-  fourth/fifth value, and two `Status`es of the same kind always
-  compare equal regardless of message/detail.
+  Each kind always carries a required message and an optional detail;
+  see "Status messages" below.
 - A step returns `Status`, optionally paired with a `dict` of data for
-  later steps on the same input: `return Status.PASS, {"example_key":
-  "example_value"}`. That data is merged into the input passed to
-  subsequent steps. If a step's returned data would overwrite an
+  later steps on the same input: `return Status.PASS("bucket ready"),
+  {"example_key": "example_value"}`. That data is merged into the input
+  passed to subsequent steps. If a step's returned data would overwrite an
   existing key — from the original input, or from an earlier step —
   `invoke()` raises `ValueError` immediately rather than silently
   picking one value: any ambiguity about which value wins is treated as
@@ -78,37 +76,54 @@ Validates and wraps a single function, at decoration time:
 
 ## Status messages
 
-Added 2026-09-21. A `Status` is a kind (`PASS`/`WAIT`/`FAIL`) plus an
-optional `message: str | None` and `detail: str | None`. `Status.PASS`,
-`Status.WAIT`, `Status.FAIL` are the plain, message-less values, used
-exactly as before; each is also **callable** to attach a message and
-return a new `Status` of the same kind: `Status.WAIT("waiting on
-backup")`. Two `Status`es compare equal — and hash equal — whenever
-their kind matches, regardless of message/detail, so `outcome ==
-Status.FAIL`-style checks and `_GLYPH`/`_COLOR` dict lookups keyed by
-`Status` are unaffected by whether a message is attached.
+Added 2026-09-21, message made required 2026-09-21 (same day, second
+pass — the first cut let `message` default to `None` and fall back to
+the word `pass`/`wait`/`fail`; that default was removed once real
+usage showed every step should say what it actually found, not just
+its kind).
 
-- **Where it renders**: `message`, when present, replaces the default
-  `pass`/`wait`/`fail` word in that cell of the table — `+ <message>`,
-  `! <message>`, `X <message>`, in the status's usual color. With no
-  message, the cell renders exactly as before. This was a deliberate
-  choice against a separate "details" section under the table for
-  short messages: they're meant to be scannable at a glance, in place,
-  not looked up elsewhere.
-- **Column width**: no longer a fixed function of the status word
-  alone — `render_table` measures the actual rendered width of every
-  cell in a column (including any message) and widens the column to
-  fit the longest one. This subsumes a real bug (`render.py`'s old
+A `Status` is a kind (`PASS`/`WAIT`/`FAIL`, a private `_Kind` enum)
+plus a **required** `message: str` and an optional `detail: str |
+None`. `Status.PASS`, `Status.WAIT`, `Status.FAIL` are classmethods,
+not values — each *builds* a `Status` of that kind from a message:
+`Status.WAIT("waiting on backup")`. There is no message-less form; a
+dataclass field with no default makes constructing one without a
+message a `TypeError`, and forgetting to call one at all (`return
+Status.PASS`, leaving the bound method itself) fails structurally too
+— `_normalize` only accepts an actual `Status` instance, so an
+uncalled classmethod reference falls into the same "invalid step
+return value" path as any other malformed return.
+
+Two `Status`es are equal (ordinary dataclass equality) only when kind
+*and* message match — `Status.FAIL("boom") != Status.FAIL("other")`.
+Internal comparisons that only care about kind (`invoke()`'s
+`fail_on_wait` check, `render.py`'s glyph/color lookup) compare
+`status.kind` against `_Kind` directly rather than relying on `Status`
+equality.
+
+- **Where it renders**: `message` always replaces the table cell's
+  word — `+ <message>`, `! <message>`, `X <message>`, in the status's
+  usual color. There's no default word to fall back to. This was a
+  deliberate choice against a separate "details" section under the
+  table for short messages: they're meant to be scannable at a glance,
+  in place, not looked up elsewhere.
+- **Column width**: not a fixed function of the status word — 
+  `render_table` measures the actual rendered width of every cell in a
+  column (including its message) and widens the column to fit the
+  longest one. This also fixed a real bug (`render.py`'s old
   `status_word_width` calculation didn't account for the glyph+space
   prefix, so any step name shorter than `"+ wait"` produced a column
   narrower than what actually printed, drifting every column after
   it — found via real output once step names got shortened).
-- **Keep messages short**: they render inline in a fixed-width column,
-  and a long one widens that column for every row, not just the one
-  that needed it. Not enforced (no truncation) — a documented
-  expectation on step authors, consistent with this library's general
-  stance of trusting the caller rather than validating what it can't
-  usefully validate.
+- **Keep messages short** — aim for well under 12 characters. They
+  render inline in a fixed-width column, and a long one widens that
+  column for every row, not just the one that needed it. Not enforced
+  (no truncation) — a documented expectation on step authors,
+  consistent with this library's general stance of trusting the caller
+  rather than validating what it can't usefully validate. The goal
+  isn't the shortest possible string, it's short *and* meaningful —
+  `"ok"`/`"waiting"` over nothing, but not padded out with words the
+  reader doesn't need either.
 - **`detail`**: a longer, optional payload (typically a traceback) not
   shown in the table at all — `invoke()` prints it once, after the
   whole table, labeled by input and step name. Keeps the table itself
@@ -127,12 +142,16 @@ from progress_tests import step, Status, invoke
 
 @step("BUCKET_EXISTS")
 def bucket_exists(case) -> Status:
-    return Status.PASS if s3_bucket_exists(case["bucket"]) else Status.WAIT
+    if s3_bucket_exists(case["bucket"]):
+        return Status.PASS("bucket ready")
+    return Status.WAIT("bucket not created yet")
 
 
 @step("DNS_CUTOVER")
 def dns_cutover(case) -> Status:
-    return Status.PASS if dns_points_at_new_host(case["bucket"]) else Status.WAIT
+    if dns_points_at_new_host(case["bucket"]):
+        return Status.PASS("DNS cut over")
+    return Status.WAIT("DNS not cut over yet")
 
 
 def test_migration():

@@ -17,12 +17,16 @@ from progress_tests import Status, invoke, step
 
 @step("STEP_ONE")
 def step_one(case) -> Status:
-    return Status.PASS if condition_one(case["name"]) else Status.WAIT
+    if condition_one(case["name"]):
+        return Status.PASS("ok")
+    return Status.WAIT("waiting")
 
 
 @step("STEP_TWO")
 def step_two(case) -> Status:
-    return Status.PASS if condition_two(case["name"]) else Status.WAIT
+    if condition_two(case["name"]):
+        return Status.PASS("ok")
+    return Status.WAIT("waiting")
 
 
 def test_migration():
@@ -39,12 +43,11 @@ defaults to the current directory). It walks `path` for
 `test_*.py`/`*_test.py` files, imports them, and calls every top-level
 `test_*` function it finds with no arguments — no fixtures, no
 parametrize, no plugin system. `invoke()` runs `steps` in order for
-each input, stopping at that input's first step that isn't
-`Status.PASS`, and prints a color-coded table (one row per input, one
-column per step) to stdout. By default, `Status.WAIT` doesn't fail the
-test (it's the expected state for something still in progress);
-`Status.FAIL` always does. Pass `fail_on_wait=True` to `invoke()` to
-also fail on `Status.WAIT`.
+each input, stopping at that input's first step that isn't a `PASS`,
+and prints a color-coded table (one row per input, one column per
+step) to stdout. By default, `WAIT` doesn't fail the test (it's the
+expected state for something still in progress); `FAIL` always does.
+Pass `fail_on_wait=True` to `invoke()` to also fail on `WAIT`.
 
 A step can also return a value for later steps on the same input to
 use, alongside its `Status`:
@@ -52,13 +55,15 @@ use, alongside its `Status`:
 ```python
 @step("STEP_ONE")
 def step_one(case) -> tuple[Status, dict]:
-    return Status.PASS, {"example_key": "example_value"}
+    return Status.PASS("ok"), {"example_key": "example_value"}
 
 
 @step("STEP_TWO")
 def step_two(case) -> Status:
     you_can_use = case["example_key"]
-    return Status.PASS if condition_two(you_can_use) else Status.WAIT
+    if condition_two(you_can_use):
+        return Status.PASS("ok")
+    return Status.WAIT("waiting")
 ```
 
 If a step's returned value would overwrite an existing key — from the
@@ -67,21 +72,18 @@ rather than silently picking a value.
 
 ### Status messages
 
-`Status.PASS`/`WAIT`/`FAIL` are the plain values, but each is also
-callable to attach a short message, shown in the table cell in place
-of the default `pass`/`wait`/`fail` word:
+`Status.PASS`/`WAIT`/`FAIL` each take a required, short message,
+shown in that cell of the table: `Status.WAIT("no backup")` renders as
+`! no backup`. There's no default `pass`/`wait`/`fail` word to fall
+back on — every step has to say what it actually found.
 
-```python
-@step("BACKUP")
-def backup(case) -> Status:
-    return Status.WAIT("waiting on nightly backup")
-```
-
-Keep messages short — they render inline in a fixed-width table
-column, and a long one widens that column for every row. A `Status`
-with a message still compares equal to the plain status of the same
-kind (`Status.WAIT("...") == Status.WAIT`), so `fail_on_wait` and
-similar checks are unaffected.
+Keep messages short — aim for well under 12 characters. They render
+inline in a fixed-width table column, and a long one widens that
+column for every row. Two
+`Status`es are equal only when both their kind and message match —
+`Status.FAIL("boom") != Status.FAIL("other")` — so don't compare a
+step's result against a specific `Status` value in your own code
+unless you mean that exact message too.
 
 `@step` automatically attaches a message when a step function raises:
 `"assert fail"` for an `AssertionError`, `"exception"` for anything

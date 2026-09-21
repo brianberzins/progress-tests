@@ -8,7 +8,7 @@ from progress_tests import Status, invoke, step
 def test_invoke_does_not_raise_when_the_only_step_passes():
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists], [{"name": "instance-a"}])
 
@@ -16,7 +16,7 @@ def test_invoke_does_not_raise_when_the_only_step_passes():
 def test_invoke_does_not_raise_on_wait_by_default():
     @step("EXISTS")
     def exists(case):
-        return Status.WAIT
+        return Status.WAIT("waiting")
 
     invoke([exists], [{"name": "instance-a"}])
 
@@ -24,7 +24,7 @@ def test_invoke_does_not_raise_on_wait_by_default():
 def test_invoke_raises_on_fail():
     @step("EXISTS")
     def exists(case):
-        return Status.FAIL
+        return Status.FAIL("boom")
 
     with pytest.raises(AssertionError):
         invoke([exists], [{"name": "instance-a"}])
@@ -33,7 +33,7 @@ def test_invoke_raises_on_fail():
 def test_invoke_raises_on_wait_when_fail_on_wait_is_set():
     @step("EXISTS")
     def exists(case):
-        return Status.WAIT
+        return Status.WAIT("waiting")
 
     with pytest.raises(AssertionError):
         invoke([exists], [{"name": "instance-a"}], fail_on_wait=True)
@@ -45,7 +45,7 @@ def test_invoke_defaults_to_a_single_implicit_input_when_none_given():
     @step("EXISTS")
     def exists(case):
         seen.append(case)
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists])
 
@@ -58,12 +58,12 @@ def test_invoke_stops_at_the_first_non_passing_step_for_that_input():
     @step("BUCKET_EXISTS")
     def bucket_exists(case):
         calls.append("BUCKET_EXISTS")
-        return Status.WAIT
+        return Status.WAIT("waiting")
 
     @step("DNS_CUTOVER")
     def dns_cutover(case):
         calls.append("DNS_CUTOVER")
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([bucket_exists, dns_cutover], [{"name": "instance-a"}])
 
@@ -76,12 +76,12 @@ def test_invoke_continues_past_a_passing_step_to_the_next_one():
     @step("BUCKET_EXISTS")
     def bucket_exists(case):
         calls.append("BUCKET_EXISTS")
-        return Status.PASS
+        return Status.PASS("ok")
 
     @step("DNS_CUTOVER")
     def dns_cutover(case):
         calls.append("DNS_CUTOVER")
-        return Status.WAIT
+        return Status.WAIT("waiting")
 
     invoke([bucket_exists, dns_cutover], [{"name": "instance-a"}])
 
@@ -91,7 +91,7 @@ def test_invoke_continues_past_a_passing_step_to_the_next_one():
 def test_invoke_evaluates_each_input_independently():
     @step("READY")
     def ready(case):
-        return Status.PASS if case["ready"] else Status.WAIT
+        return Status.PASS("ok") if case["ready"] else Status.WAIT("waiting")
 
     # Neither input's evaluation should affect the other's.
     invoke(
@@ -106,7 +106,7 @@ def test_invoke_evaluates_each_input_independently():
 def test_invoke_raises_if_any_input_fails_even_if_others_pass():
     @step("READY")
     def ready(case):
-        return Status.PASS if case["ready"] else Status.FAIL
+        return Status.PASS("ok") if case["ready"] else Status.FAIL("not ready")
 
     with pytest.raises(AssertionError, match="instance-b"):
         invoke(
@@ -121,11 +121,11 @@ def test_invoke_raises_if_any_input_fails_even_if_others_pass():
 def test_invoke_rejects_duplicate_step_names():
     @step("SAME_NAME")
     def first(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     @step("SAME_NAME")
     def second(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     with pytest.raises(ValueError, match="SAME_NAME"):
         invoke([first, second], [{"name": "instance-a"}])
@@ -134,7 +134,7 @@ def test_invoke_rejects_duplicate_step_names():
 def test_invoke_rejects_duplicate_input_names():
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     with pytest.raises(ValueError, match="instance-a"):
         invoke(
@@ -145,7 +145,7 @@ def test_invoke_rejects_duplicate_input_names():
 
 def test_invoke_rejects_a_step_that_was_not_decorated():
     def undecorated(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     with pytest.raises(TypeError):
         invoke([undecorated], [{"name": "instance-a"}])
@@ -154,7 +154,7 @@ def test_invoke_rejects_a_step_that_was_not_decorated():
 def test_invoke_falls_back_to_positional_label_when_name_is_absent(capsys):
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists], [{}])
 
@@ -170,15 +170,15 @@ def test_invoke_a_three_step_migration_across_inputs_at_different_stages(capsys)
 
     @step("BUCKET_EXISTS")
     def bucket_exists(case):
-        return Status.PASS if case["stage"] >= 1 else Status.WAIT
+        return Status.PASS("ok") if case["stage"] >= 1 else Status.WAIT("waiting")
 
     @step("DATA_COPIED")
     def data_copied(case):
-        return Status.PASS if case["stage"] >= 2 else Status.WAIT
+        return Status.PASS("ok") if case["stage"] >= 2 else Status.WAIT("waiting")
 
     @step("DNS_CUTOVER")
     def dns_cutover(case):
-        return Status.PASS if case["stage"] >= 3 else Status.WAIT
+        return Status.PASS("ok") if case["stage"] >= 3 else Status.WAIT("waiting")
 
     steps = [bucket_exists, data_copied, dns_cutover]
     inputs = [
@@ -201,11 +201,11 @@ def test_invoke_a_three_step_migration_across_inputs_at_different_stages(capsys)
 def test_invoke_prints_a_header_naming_input_and_each_step(capsys):
     @step("BUCKET_EXISTS")
     def bucket_exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     @step("DNS_CUTOVER")
     def dns_cutover(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([bucket_exists, dns_cutover], [{"name": "instance-a"}])
 
@@ -218,7 +218,7 @@ def test_invoke_prints_a_header_naming_input_and_each_step(capsys):
 def test_invoke_shows_the_fail_glyph_for_a_failed_step(capsys):
     @step("CHECK")
     def check(case):
-        return Status.FAIL
+        return Status.FAIL("boom")
 
     with pytest.raises(AssertionError):
         invoke([check], [{"name": "instance-a"}])
@@ -229,11 +229,11 @@ def test_invoke_shows_the_fail_glyph_for_a_failed_step(capsys):
 def test_invoke_leaves_unreached_steps_blank_not_passing_or_failing(capsys):
     @step("BUCKET_EXISTS")
     def bucket_exists(case):
-        return Status.WAIT
+        return Status.WAIT("waiting")
 
     @step("DNS_CUTOVER")
     def dns_cutover(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([bucket_exists, dns_cutover], [{"name": "instance-a"}])
 
@@ -248,7 +248,7 @@ def test_invoke_output_has_no_ansi_codes_when_stdout_is_not_a_tty(capsys, monkey
 
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists], [{"name": "instance-a"}])
 
@@ -262,7 +262,7 @@ def test_invoke_output_has_ansi_codes_when_color_is_enabled(capsys, monkeypatch)
 
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists], [{"name": "instance-a"}])
 
@@ -275,7 +275,7 @@ def test_invoke_output_has_no_ansi_codes_when_no_color_is_set(capsys, monkeypatc
 
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists], [{"name": "instance-a"}])
 
@@ -288,7 +288,7 @@ def test_invoke_output_has_no_ansi_codes_when_ci_env_var_is_set(capsys, monkeypa
 
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists], [{"name": "instance-a"}])
 
@@ -300,12 +300,12 @@ def test_invoke_passes_data_from_one_step_to_the_next():
 
     @step("CREATE_DISTRIBUTION")
     def create_distribution(case):
-        return Status.PASS, {"distribution_id": "E123"}
+        return Status.PASS("ok"), {"distribution_id": "E123"}
 
     @step("VERIFY_DEPLOYED")
     def verify_deployed(case):
         seen_ids.append(case["distribution_id"])
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([create_distribution, verify_deployed], [{"name": "instance-a"}])
 
@@ -315,7 +315,7 @@ def test_invoke_passes_data_from_one_step_to_the_next():
 def test_invoke_does_not_mutate_the_original_input_dict():
     @step("CREATE_DISTRIBUTION")
     def create_distribution(case):
-        return Status.PASS, {"distribution_id": "E123"}
+        return Status.PASS("ok"), {"distribution_id": "E123"}
 
     original = {"name": "instance-a"}
     invoke([create_distribution], [original])
@@ -326,7 +326,7 @@ def test_invoke_does_not_mutate_the_original_input_dict():
 def test_invoke_raises_when_a_step_tries_to_overwrite_an_input_field():
     @step("RENAME")
     def rename(case):
-        return Status.PASS, {"name": "something-else"}
+        return Status.PASS("ok"), {"name": "something-else"}
 
     with pytest.raises(ValueError, match="name"):
         invoke([rename], [{"name": "instance-a"}])
@@ -335,11 +335,11 @@ def test_invoke_raises_when_a_step_tries_to_overwrite_an_input_field():
 def test_invoke_raises_when_two_steps_both_set_the_same_key():
     @step("FIRST")
     def first(case):
-        return Status.PASS, {"key": "value-from-first"}
+        return Status.PASS("ok"), {"key": "value-from-first"}
 
     @step("SECOND")
     def second(case):
-        return Status.PASS, {"key": "value-from-second"}
+        return Status.PASS("ok"), {"key": "value-from-second"}
 
     with pytest.raises(ValueError, match="key"):
         invoke([first, second], [{"name": "instance-a"}])
@@ -353,7 +353,7 @@ def test_invoke_reports_fail_when_a_step_mutates_case_directly(capsys):
     @step("SNEAKY")
     def sneaky(case):
         case["key"] = "mutated directly, not returned"
-        return Status.PASS
+        return Status.PASS("ok")
 
     with pytest.raises(AssertionError):
         invoke([sneaky], [{"name": "instance-a"}])
@@ -380,7 +380,7 @@ def test_invoke_prints_a_traceback_after_the_table_not_interleaved_with_it(capsy
 def test_invoke_does_not_print_a_traceback_section_when_nothing_raised(capsys):
     @step("EXISTS")
     def exists(case):
-        return Status.PASS
+        return Status.PASS("ok")
 
     invoke([exists], [{"name": "instance-a"}])
 
