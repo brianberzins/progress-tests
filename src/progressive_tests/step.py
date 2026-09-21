@@ -3,7 +3,7 @@ import inspect
 import sys
 import traceback
 
-from ._status import Status
+from .status import Status
 
 _POSITIONAL_KINDS = (
     inspect.Parameter.POSITIONAL_ONLY,

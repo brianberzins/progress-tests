@@ -1,7 +1,7 @@
 from collections import Counter
 
-from ._render import color_enabled, render_table
-from ._status import Status
+from .render import color_enabled, render_table
+from .status import Status
 
 
 def invoke(steps, inputs=None, fail_on_wait=False):

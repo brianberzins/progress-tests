@@ -4,11 +4,13 @@ See `docs/design/progressive-tests-library.md` for the full design.
 
 ## Needs your feedback
 
-- The README looked empty/stale to you twice, even though disk, the
-  git commit, and `origin/main` all show the full content byte-for-byte
-  (verified via hash/hexdump). Best guess is a stale editor tab from
-  when it was first created as a bare stub. Still unconfirmed — run
-  `! cat README.md` here to check we're looking at the same bytes.
+- The README (and once, TODO.md) looked empty/stale to you, even though
+  disk, the git commit, and `origin/main` all show the full content
+  byte-for-byte (verified via hash/hexdump each time). Ruled out: a
+  directory mismatch — confirmed your shell's `pwd` matches this repo.
+  Still unconfirmed: whether it's a stale editor tab from when README
+  was first created as a bare stub. Run `! cat README.md` here to check
+  we're looking at the same bytes.
 
 ## Backlog
 

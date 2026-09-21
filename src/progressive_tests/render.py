@@ -1,7 +1,7 @@
 import os
 import sys
 
-from ._status import Status
+from .status import Status
 
 _GLYPH = {Status.PASS: "✓", Status.WAIT: "!", Status.FAIL: "✗"}
 _COLOR = {Status.PASS: "\033[32m", Status.WAIT: "\033[33m", Status.FAIL: "\033[31m"}
