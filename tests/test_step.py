@@ -27,6 +27,14 @@ def test_step_turns_a_non_status_return_into_fail():
     assert broken({}) == (Status.FAIL("invalid step return value"), {})
 
 
+def test_step_turns_an_uncalled_status_classmethod_into_fail():
+    @step("FORGOT_TO_CALL_IT")
+    def broken(case):
+        return Status.PASS  # forgot the parens
+
+    assert broken({}) == (Status.FAIL("invalid step return value"), {})
+
+
 def test_step_labels_an_invalid_return_value_with_a_short_message():
     @step("FORGOT_TO_RETURN_STATUS")
     def broken(case):

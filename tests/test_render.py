@@ -1,4 +1,4 @@
-from progress_tests.render import render_table
+from progress_tests.render import _cell_text, render_table
 from progress_tests.status import Status
 
 
@@ -50,6 +50,10 @@ def test_render_table_widens_a_column_to_fit_a_long_message():
     lines = table.splitlines()
     assert len({len(line) for line in lines}) == 1
     assert "a fairly long status message" in table
+
+
+def test_cell_text_shows_the_glyph_alone_when_message_is_empty():
+    assert _cell_text(Status.PASS()) == "+"
 
 
 def test_render_table_colors_a_message_the_same_as_its_status():

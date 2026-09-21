@@ -70,20 +70,19 @@ If a step's returned value would overwrite an existing key — from the
 original input, or a previous step — `invoke()` raises `ValueError`
 rather than silently picking a value.
 
-### Status messages
+### Message guidance
 
-`Status.PASS`/`WAIT`/`FAIL` each take a required, short message,
-shown in that cell of the table: `Status.WAIT("no backup")` renders as
-`! no backup`. There's no default `pass`/`wait`/`fail` word to fall
-back on — every step has to say what it actually found.
-
-Keep messages short — aim for well under 12 characters. They render
+`Status.PASS`/`WAIT`/`FAIL` each take an optional message, shown in
+that cell of the table: `Status.WAIT("no backup")` renders as `! no
+backup`. Leave it out (`Status.PASS()`) and the cell just shows the
+glyph. Keep it short — aim for well under 12 characters. It renders
 inline in a fixed-width table column, and a long one widens that
-column for every row. Two
-`Status`es are equal only when both their kind and message match —
-`Status.FAIL("boom") != Status.FAIL("other")` — so don't compare a
-step's result against a specific `Status` value in your own code
-unless you mean that exact message too.
+column for every row.
+
+Two `Status`es are equal only when both their kind and message
+match — `Status.FAIL("boom") != Status.FAIL("other")` — so don't
+compare a step's result against a specific `Status` value in your own
+code unless you mean that exact message too.
 
 `@step` automatically attaches a message when a step function raises:
 `"assert fail"` for an `AssertionError`, `"exception"` for anything

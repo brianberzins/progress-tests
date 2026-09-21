@@ -44,8 +44,8 @@ plus everything decided beyond it.
   No confidence/sampling annotation for checks that only sample live
   state (e.g. a high-volume log stream) — the check author's own
   return value is the final word on what "pass" means for their check.
-  Each kind always carries a required message and an optional detail;
-  see "Status messages" below.
+  Each kind carries an optional message and an optional detail; see
+  "Status messages" below.
 - A step returns `Status`, optionally paired with a `dict` of data for
   later steps on the same input: `return Status.PASS("bucket ready"),
   {"example_key": "example_value"}`. That data is merged into the input
@@ -76,23 +76,26 @@ Validates and wraps a single function, at decoration time:
 
 ## Status messages
 
-Added 2026-09-21, message made required 2026-09-21 (same day, second
-pass — the first cut let `message` default to `None` and fall back to
-the word `pass`/`wait`/`fail`; that default was removed once real
-usage showed every step should say what it actually found, not just
-its kind).
+Added 2026-09-21, message made required later the same day, then
+changed to default to `""` shortly after that (three passes in one
+day): the first cut let `message` default to `None` and fall back to
+the word `pass`/`wait`/`fail` — dropped once real usage showed every
+step should say what it actually found, not just its kind. Making it
+required (no default at all, `TypeError` if omitted) was the next
+attempt, but that forced a message even on a step with nothing more
+useful to say than its glyph. `message: str = ""` is the settled
+answer: still no silent fallback to a generic word, but a step can
+opt out of a message entirely rather than being forced to invent one.
 
 A `Status` is a kind (`PASS`/`WAIT`/`FAIL`, a private `_Kind` enum)
-plus a **required** `message: str` and an optional `detail: str |
-None`. `Status.PASS`, `Status.WAIT`, `Status.FAIL` are classmethods,
-not values — each *builds* a `Status` of that kind from a message:
-`Status.WAIT("waiting on backup")`. There is no message-less form; a
-dataclass field with no default makes constructing one without a
-message a `TypeError`, and forgetting to call one at all (`return
-Status.PASS`, leaving the bound method itself) fails structurally too
-— `_normalize` only accepts an actual `Status` instance, so an
-uncalled classmethod reference falls into the same "invalid step
-return value" path as any other malformed return.
+plus a `message: str = ""` and an optional `detail: str | None`.
+`Status.PASS`, `Status.WAIT`, `Status.FAIL` are classmethods, not
+values — each *builds* a `Status` of that kind: `Status.WAIT("waiting
+on backup")`, or `Status.PASS()` for no message. Forgetting to call
+one at all (`return Status.PASS`, leaving the bound method itself)
+still fails structurally — `_normalize` only accepts an actual
+`Status` instance, so an uncalled classmethod reference falls into the
+same "invalid step return value" path as any other malformed return.
 
 Two `Status`es are equal (ordinary dataclass equality) only when kind
 *and* message match — `Status.FAIL("boom") != Status.FAIL("other")`.
@@ -101,9 +104,11 @@ Internal comparisons that only care about kind (`invoke()`'s
 `status.kind` against `_Kind` directly rather than relying on `Status`
 equality.
 
-- **Where it renders**: `message` always replaces the table cell's
-  word — `+ <message>`, `! <message>`, `X <message>`, in the status's
-  usual color. There's no default word to fall back to. This was a
+- **Where it renders**: a non-empty `message` replaces the table
+  cell's word — `+ <message>`, `! <message>`, `X <message>`, in the
+  status's usual color. An empty `message` renders as the bare glyph
+  (`+`/`!`/`X`) with nothing after it — not the word `pass`/`wait`/
+  `fail`, which was the earlier, rejected default. This was also a
   deliberate choice against a separate "details" section under the
   table for short messages: they're meant to be scannable at a glance,
   in place, not looked up elsewhere.

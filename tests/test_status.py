@@ -1,5 +1,3 @@
-import pytest
-
 from progress_tests import Status
 from progress_tests.status import _Kind
 
@@ -8,15 +6,16 @@ def test_status_has_three_distinct_kinds():
     assert len({_Kind.PASS, _Kind.WAIT, _Kind.FAIL}) == 3
 
 
-def test_status_requires_a_message():
+def test_status_can_carry_a_message():
     assert Status.PASS("ok").message == "ok"
     assert Status.WAIT("waiting").message == "waiting"
     assert Status.FAIL("boom").message == "boom"
 
 
-def test_status_cannot_be_built_without_a_message():
-    with pytest.raises(TypeError):
-        Status.PASS()
+def test_status_message_defaults_to_empty():
+    assert Status.PASS().message == ""
+    assert Status.WAIT().message == ""
+    assert Status.FAIL().message == ""
 
 
 def test_status_has_no_detail_by_default():

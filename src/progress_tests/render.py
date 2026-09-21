@@ -49,6 +49,8 @@ def render_table(
 
 
 def _cell_text(status: Status) -> str:
+    if not status.message:
+        return _GLYPH[status.kind]
     return f"{_GLYPH[status.kind]} {status.message}"
 
 
