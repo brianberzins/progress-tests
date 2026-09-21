@@ -1,7 +1,15 @@
 import functools
 import inspect
+import sys
+import traceback
 
 from ._status import Status
+
+_POSITIONAL_KINDS = (
+    inspect.Parameter.POSITIONAL_ONLY,
+    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    inspect.Parameter.VAR_POSITIONAL,
+)
 
 
 def step(name):
@@ -16,11 +24,11 @@ def step(name):
     """
 
     def decorator(func):
-        params = inspect.signature(func).parameters
-        if len(params) != 1:
+        params = list(inspect.signature(func).parameters.values())
+        if len(params) != 1 or params[0].kind not in _POSITIONAL_KINDS:
             raise TypeError(
                 f"@step({name!r}): step function must take exactly one "
-                f"argument (the input), got {len(params)}"
+                f"positional argument (the input)"
             )
 
         @functools.wraps(func)
@@ -28,6 +36,7 @@ def step(name):
             try:
                 result = func(case)
             except Exception:
+                traceback.print_exc(file=sys.stderr)
                 return Status.FAIL
             return result if isinstance(result, Status) else Status.FAIL
 

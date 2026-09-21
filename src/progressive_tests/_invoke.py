@@ -1,3 +1,5 @@
+from collections import Counter
+
 from ._render import color_enabled, render_table
 from ._status import Status
 
@@ -14,7 +16,7 @@ def invoke(steps, inputs=None, fail_on_wait=False):
     frontier step is `Status.FAIL`, or `Status.WAIT` when
     `fail_on_wait=True`.
     """
-    _validate_steps(steps)
+    step_names = _validate_steps(steps)
     if inputs is None:
         inputs = [{}]
     labels = _labels_for(inputs)
@@ -28,7 +30,6 @@ def invoke(steps, inputs=None, fail_on_wait=False):
         if frontier is Status.FAIL or (frontier is Status.WAIT and fail_on_wait):
             failing_labels.append(label)
 
-    step_names = [s.step_name for s in steps]
     print(render_table(step_names, rows, use_color=color_enabled()))
 
     if failing_labels:
@@ -54,19 +55,20 @@ def _labels_for(inputs):
 
 
 def _validate_steps(steps):
-    names = [_step_name_of(s) for s in steps]
-    duplicates = {name for name in names if names.count(name) > 1}
-    if duplicates:
-        raise ValueError(f"duplicate step name(s): {', '.join(sorted(duplicates))}")
-
-
-def _step_name_of(s):
-    if not hasattr(s, "step_name"):
-        raise TypeError(f"{s!r} was not decorated with @step")
-    return s.step_name
+    names = []
+    for s in steps:
+        if not hasattr(s, "step_name"):
+            raise TypeError(f"{s!r} was not decorated with @step")
+        names.append(s.step_name)
+    _reject_duplicates(names, "step name")
+    return names
 
 
 def _validate_labels(labels):
-    duplicates = {label for label in labels if labels.count(label) > 1}
+    _reject_duplicates(labels, "input name")
+
+
+def _reject_duplicates(items, kind):
+    duplicates = {item for item, count in Counter(items).items() if count > 1}
     if duplicates:
-        raise ValueError(f"duplicate input name(s): {', '.join(sorted(duplicates))}")
+        raise ValueError(f"duplicate {kind}(s): {', '.join(sorted(duplicates))}")
