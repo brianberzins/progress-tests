@@ -1,4 +1,6 @@
 from collections import Counter
+from types import MappingProxyType
+from typing import Any
 
 from .render import color_enabled, render_table
 from .status import Status
@@ -47,11 +49,14 @@ def invoke(
 def _evaluate(
     steps: list[Step], original_case: Case
 ) -> tuple[dict[str, Status], Status]:
-    case = dict(original_case)
+    case: dict[str, Any] = dict(original_case)
     statuses: dict[str, Status] = {}
     frontier = Status.PASS
     for s in steps:
-        frontier, data = s(case)
+        # A step gets a read-only view of the accumulated case -- mutating
+        # it directly raises (caught by @step, reported as Status.FAIL)
+        # rather than silently bypassing the overwrite check in _merge.
+        frontier, data = s(MappingProxyType(case))
         statuses[s.step_name] = frontier
         if frontier is not Status.PASS:
             break
@@ -59,7 +64,7 @@ def _evaluate(
     return statuses, frontier
 
 
-def _merge(case: Case, data: Case, step_name: str) -> None:
+def _merge(case: dict[str, Any], data: dict[str, Any], step_name: str) -> None:
     collisions = set(case) & set(data)
     if collisions:
         raise ValueError(

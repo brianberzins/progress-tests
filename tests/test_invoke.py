@@ -335,11 +335,27 @@ def test_invoke_raises_when_a_step_tries_to_overwrite_an_input_field():
 def test_invoke_raises_when_two_steps_both_set_the_same_key():
     @step("FIRST")
     def first(case):
-        return Status.PASS, {"distribution_id": "E123"}
+        return Status.PASS, {"key": "value-from-first"}
 
     @step("SECOND")
     def second(case):
-        return Status.PASS, {"distribution_id": "E456"}
+        return Status.PASS, {"key": "value-from-second"}
 
-    with pytest.raises(ValueError, match="distribution_id"):
+    with pytest.raises(ValueError, match="key"):
         invoke([first, second], [{"name": "instance-a"}])
+
+
+def test_invoke_reports_fail_when_a_step_mutates_case_directly(capsys):
+    """A step is only meant to pass data forward via its return value,
+    checked by _merge for collisions. Mutating the case it was given
+    bypasses that check entirely -- this must not silently succeed."""
+
+    @step("SNEAKY")
+    def sneaky(case):
+        case["key"] = "mutated directly, not returned"
+        return Status.PASS
+
+    with pytest.raises(AssertionError):
+        invoke([sneaky], [{"name": "instance-a"}])
+
+    assert "✗" in capsys.readouterr().out
