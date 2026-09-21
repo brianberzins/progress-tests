@@ -3,63 +3,57 @@ from pathlib import Path
 from progress_tests import Status, invoke, step
 
 FILES_DIR = Path(__file__).parent / "files"
+MIN_VERSION = 2
 
 
-@step("SOURCE")
-def source_exists(case) -> Status:
-    source = FILES_DIR / case["name"] / "source.txt"
-    return Status.PASS("found") if source.is_file() else Status.WAIT("missing")
+def _fields(name: str) -> dict[str, str]:
+    path = FILES_DIR / f"{name}.txt"
+    if not path.is_file():
+        return {}
+    fields = {}
+    for line in path.read_text().splitlines():
+        key, _, value = line.partition("=")
+        fields[key] = value
+    return fields
 
 
-@step("POPULATED")
-def source_populated(case) -> tuple[Status, dict]:
-    source = FILES_DIR / case["name"] / "source.txt"
-    if not source.is_file():
-        return Status.WAIT("no source"), {}
-    lines = source.read_text().splitlines()
-    if not lines:
-        return Status.WAIT("empty"), {}
-    return Status.PASS("ready"), {"line_count": len(lines)}
+@step("FILE")
+def file_exists(case) -> Status:
+    path = FILES_DIR / f"{case['name']}.txt"
+    return Status.PASS("found") if path.is_file() else Status.WAIT("missing")
 
 
-@step("COPY")
-def copy_matches_source(case) -> Status:
-    copy = FILES_DIR / case["name"] / "copy.txt"
-    if not copy.is_file():
+@step("VERSION")
+def version_parsed(case) -> tuple[Status, dict]:
+    version = _fields(case["name"]).get("version")
+    if version is None:
+        return Status.WAIT("missing"), {}
+    return Status.PASS(f"v{version}"), {"version": int(version)}
+
+
+@step("UPGRADED")
+def version_upgraded(case) -> Status:
+    if "version" not in case:
+        return Status.WAIT("no version")
+    version = case["version"]
+    if version < MIN_VERSION:
+        return Status.WAIT(f"v{version}")
+    return Status.PASS(f"v{version}")
+
+
+@step("HEALTHY")
+def is_healthy(case) -> Status:
+    healthy = _fields(case["name"]).get("healthy")
+    if healthy is None:
         return Status.WAIT("missing")
-    expected_lines = case["line_count"]
-    copy_line_count = len(copy.read_text().splitlines())
-    if copy_line_count != expected_lines:
-        return Status.WAIT(f"{copy_line_count}/{expected_lines}")
-    return Status.PASS(f"{copy_line_count}/{expected_lines}")
-
-
-@step("SUMMARY")
-def summary_exists(case) -> Status:
-    summary = FILES_DIR / case["name"] / "summary.txt"
-    return Status.PASS("found") if summary.is_file() else Status.WAIT("missing")
-
-
-@step("DONE")
-def marked_done(case) -> Status:
-    marker = FILES_DIR / case["name"] / "DONE"
-    return Status.PASS("done") if marker.is_file() else Status.WAIT("pending")
+    return Status.PASS("healthy") if healthy == "true" else Status.WAIT("unhealthy")
 
 
 def test_pipeline():
-    steps = [
-        source_exists,
-        source_populated,
-        copy_matches_source,
-        summary_exists,
-        marked_done,
-    ]
+    steps = [file_exists, version_parsed, version_upgraded, is_healthy]
     inputs = [
-        {"name": "waiting-on-source"},
-        {"name": "waiting-on-count"},
-        {"name": "waiting-on-copy"},
-        {"name": "partial-copy"},
-        {"name": "waiting-on-summary"},
+        {"name": "not-started"},
+        {"name": "below-minimum"},
         {"name": "complete"},
     ]
     invoke(steps, inputs)

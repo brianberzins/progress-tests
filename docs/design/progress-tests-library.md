@@ -260,11 +260,10 @@ A small `wait_for_case_data(case, *keys)` helper (returning
 early-return guard) was proposed and built the same day, then
 **rejected** — no shortcut method for this. A step that depends on
 prior data guards itself with ordinary code instead, e.g.
-`example/test_pipeline.py`'s `COPY` step checks `copy.is_file()`
-before ever touching `case["line_count"]`, which happens to be a
-sufficient guard given how its own fixtures are shaped. There is no
-library-provided helper for this — it's on the step author to notice
-and guard against, the same as any other data-dependency bug.
+`example/test_pipeline.py`'s `UPGRADED` step checks `"version" not in
+case` before reading `case["version"]`. There is no library-provided
+helper for this — it's on the step author to notice and guard against,
+the same as any other data-dependency bug.
 
 ## Explicitly out of scope for v1
 
