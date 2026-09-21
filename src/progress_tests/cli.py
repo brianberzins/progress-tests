@@ -1,5 +1,6 @@
 import argparse
 import importlib.util
+import os
 import sys
 import traceback
 from collections.abc import Callable
@@ -9,13 +10,6 @@ _TEST_FILE_PATTERNS = ("test_*.py", "*_test.py")
 
 
 def discover(root: Path) -> list[tuple[str, Callable[[], None]]]:
-    """Find every `test_*.py`/`*_test.py` file under `root`, import it,
-    and collect its top-level `test_*` functions.
-
-    No fixtures, no parametrize, no plugin system: each function is
-    called with zero arguments, and `invoke()` already raises on real
-    failure, so "did it raise" is the whole pass/fail signal.
-    """
     tests: list[tuple[str, Callable[[], None]]] = []
     for path in _discover_files(root):
         module = _import_file(path)
@@ -37,8 +31,6 @@ def _discover_files(root: Path) -> list[Path]:
 
 
 def _import_file(path: Path):
-    # A unique module name per file avoids sys.modules collisions between
-    # same-named test files in different directories.
     module_name = f"_progress_tests_discovered_{abs(hash(path))}"
     spec = importlib.util.spec_from_file_location(module_name, path)
     module = importlib.util.module_from_spec(spec)
@@ -60,8 +52,16 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="directory to discover progressive tests under (default: cwd)",
     )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="suppress colored table output",
+    )
     args = parser.parse_args(argv)
     root = args.path.resolve()
+
+    if args.no_color:
+        os.environ["NO_COLOR"] = "1"
 
     tests = discover(root)
     if not tests:

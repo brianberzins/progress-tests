@@ -243,22 +243,9 @@ def test_invoke_leaves_unreached_steps_blank_not_passing_or_failing(capsys):
     assert "X" not in row
 
 
-def test_invoke_output_has_no_ansi_codes_when_stdout_is_not_a_tty(capsys, monkeypatch):
-    monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
-
-    @step("EXISTS")
-    def exists(case):
-        return Status.PASS("ok")
-
-    invoke([exists], [{"name": "instance-a"}])
-
-    assert "\033[" not in capsys.readouterr().out
-
-
-def test_invoke_output_has_ansi_codes_when_color_is_enabled(capsys, monkeypatch):
+def test_invoke_output_has_ansi_codes_by_default_even_off_a_tty(capsys, monkeypatch):
     monkeypatch.delenv("NO_COLOR", raising=False)
-    monkeypatch.delenv("CI", raising=False)
-    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
 
     @step("EXISTS")
     def exists(case):
@@ -271,20 +258,6 @@ def test_invoke_output_has_ansi_codes_when_color_is_enabled(capsys, monkeypatch)
 
 def test_invoke_output_has_no_ansi_codes_when_no_color_is_set(capsys, monkeypatch):
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
-
-    @step("EXISTS")
-    def exists(case):
-        return Status.PASS("ok")
-
-    invoke([exists], [{"name": "instance-a"}])
-
-    assert "\033[" not in capsys.readouterr().out
-
-
-def test_invoke_output_has_no_ansi_codes_when_ci_env_var_is_set(capsys, monkeypatch):
-    monkeypatch.setenv("CI", "true")
-    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
 
     @step("EXISTS")
     def exists(case):

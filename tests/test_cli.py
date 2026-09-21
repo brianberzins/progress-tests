@@ -176,6 +176,48 @@ def test_main_reports_an_unexpected_exception_as_a_failure(tmp_path, capsys):
     assert "0 passed, 1 failed" in out
 
 
+def test_main_shows_color_by_default(tmp_path, capsys, monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    _write(
+        tmp_path / "test_one.py",
+        """
+        from progress_tests import Status, invoke, step
+
+        @step("CHECK")
+        def check(case):
+            return Status.PASS("ok")
+
+        def test_a():
+            invoke([check])
+        """,
+    )
+
+    main([str(tmp_path)])
+
+    assert "\033[" in capsys.readouterr().out
+
+
+def test_main_no_color_flag_suppresses_color(tmp_path, capsys, monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    _write(
+        tmp_path / "test_one.py",
+        """
+        from progress_tests import Status, invoke, step
+
+        @step("CHECK")
+        def check(case):
+            return Status.PASS("ok")
+
+        def test_a():
+            invoke([check])
+        """,
+    )
+
+    main([str(tmp_path), "--no-color"])
+
+    assert "\033[" not in capsys.readouterr().out
+
+
 def test_main_defaults_to_the_current_directory(tmp_path, capsys, monkeypatch):
     _write(
         tmp_path / "test_one.py",

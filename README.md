@@ -38,8 +38,8 @@ def test_migration():
     invoke(steps, inputs)
 ```
 
-Run it with the bundled runner: `progress-tests [path]` (`path`
-defaults to the current directory). It walks `path` for
+Run it with the bundled runner: `progress-tests [path] [--no-color]`
+(`path` defaults to the current directory). It walks `path` for
 `test_*.py`/`*_test.py` files, imports them, and calls every top-level
 `test_*` function it finds with no arguments — no fixtures, no
 parametrize, no plugin system. `invoke()` runs `steps` in order for
@@ -48,6 +48,11 @@ and prints a color-coded table (one row per input, one column per
 step) to stdout. By default, `WAIT` doesn't fail the test (it's the
 expected state for something still in progress); `FAIL` always does.
 Pass `fail_on_wait=True` to `invoke()` to also fail on `WAIT`.
+
+Color is on by default (even when stdout isn't a terminal, so it
+survives being piped through something like `watch --color`). Pass
+`--no-color`, or set the `NO_COLOR` environment variable, to suppress
+it.
 
 A step can also return a value for later steps on the same input to
 use, alongside its `Status`:

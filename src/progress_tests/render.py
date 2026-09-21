@@ -1,5 +1,4 @@
 import os
-import sys
 
 from .status import Status, _Kind
 
@@ -14,9 +13,7 @@ _GUTTER = "  "
 
 
 def color_enabled() -> bool:
-    if os.environ.get("NO_COLOR") or os.environ.get("CI"):
-        return False
-    return sys.stdout.isatty()
+    return not os.environ.get("NO_COLOR")
 
 
 def render_table(
