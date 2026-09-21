@@ -1,5 +1,5 @@
 [project]
-name = "progressive-tests"
+name = "progress-tests"
 version = "0.1.0"
 description = "Write progressive tests: ordered, deterministic checks that track and document real-world progress toward a desired state."
 readme = "README.md"

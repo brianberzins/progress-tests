@@ -51,7 +51,7 @@ wheels = [
 ]
 
 [[package]]
-name = "progressive-tests"
+name = "progress-tests"
 version = "0.1.0"
 source = { editable = "." }
 

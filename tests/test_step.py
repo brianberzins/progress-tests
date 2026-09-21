@@ -1,6 +1,6 @@
 import pytest
 
-from progressive_tests import Status, step
+from progress_tests import Status, step
 
 
 def test_step_returns_the_underlying_status_with_no_data():

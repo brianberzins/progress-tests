@@ -1,4 +1,4 @@
-from progressive_tests import Status
+from progress_tests import Status
 
 
 def test_status_has_three_values():

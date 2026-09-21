@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from progressive_tests import Status, invoke, step
+from progress_tests import Status, invoke, step
 
 
 def test_invoke_does_not_raise_when_the_only_step_passes():

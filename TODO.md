@@ -1,6 +1,6 @@
 # TODO
 
-See `docs/design/progressive-tests-library.md` for the full design.
+See `docs/design/progress-tests-library.md` for the full design.
 
 ## Backlog
 

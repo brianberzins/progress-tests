@@ -6,12 +6,17 @@ summarized, and finally marked done. The five instances below are each
 stopped at a different one of those five steps, so running this file
 shows the whole spectrum of progress in a single table.
 
-Run it with: uv run pytest example/test_pipeline.py -s
+Run it with: uv run pytest -q -s example/test_pipeline.py
+
+(-s so the table prints even though every input passes; -q so pytest
+doesn't echo the filename inline before the table's own header line --
+harmless, but it makes the header look misaligned with the rows below
+it, which it isn't.)
 """
 
 from pathlib import Path
 
-from progressive_tests import Status, invoke, step
+from progress_tests import Status, invoke, step
 
 FILES_DIR = Path(__file__).parent / "files"
 

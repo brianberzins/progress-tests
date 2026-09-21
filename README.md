@@ -1,4 +1,4 @@
-# progressive-tests
+# progress-tests
 
 A library for writing progressive tests: ordered, deterministic checks
 that track and document real-world progress toward a desired state
@@ -6,13 +6,13 @@ that track and document real-world progress toward a desired state
 is a long-lived test of the final desired state, not a disposable
 migration artifact.
 
-See `docs/design/progressive-tests-library.md` for the full design and
+See `docs/design/progress-tests-library.md` for the full design and
 `docs/LANGUAGE.md` for terminology.
 
 ## Usage
 
 ```python
-from progressive_tests import Status, invoke, step
+from progress_tests import Status, invoke, step
 
 
 @step("STEP_ONE")

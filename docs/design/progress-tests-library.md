@@ -1,4 +1,4 @@
-# Design: progressive-tests (Python library)
+# Design: progress-tests (Python library)
 
 Design session date: 2026-09-20. Terminology used throughout this doc is
 defined in `../LANGUAGE.md`.
@@ -18,7 +18,7 @@ plus everything decided beyond it.
   *test consumer* is a Go binary, not when a human is authoring one-off
   checks, so it didn't win out despite good concurrency primitives.
 - Built and packaged with `uv`; linted/formatted with `ruff`.
-- Package name `progressive-tests` (PyPI), imported as `progressive_tests`.
+- Package name `progress-tests` (PyPI), imported as `progress_tests`.
 - The runner is plain `pytest`. There is no custom CLI, no pytest
   plugin, no registered CLI flags. The library is a plain set of
   importable functions — nothing more.
@@ -68,7 +68,7 @@ Validates and wraps a single function, at decoration time:
 ## `invoke()` — the engine
 
 ```python
-from progressive_tests import step, Status, invoke
+from progress_tests import step, Status, invoke
 
 
 @step("BUCKET_EXISTS")
