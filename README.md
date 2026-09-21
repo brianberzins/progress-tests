@@ -15,21 +15,21 @@ See `docs/design/progressive-tests-library.md` for the full design and
 from progressive_tests import Status, invoke, step
 
 
-@step("BUCKET_EXISTS")
-def bucket_exists(case) -> Status:
-    return Status.PASS if s3_bucket_exists(case["bucket"]) else Status.WAIT
+@step("STEP_ONE")
+def step_one(case) -> Status:
+    return Status.PASS if condition_one(case["name"]) else Status.WAIT
 
 
-@step("DNS_CUTOVER")
-def dns_cutover(case) -> Status:
-    return Status.PASS if dns_points_at_new_host(case["bucket"]) else Status.WAIT
+@step("STEP_TWO")
+def step_two(case) -> Status:
+    return Status.PASS if condition_two(case["name"]) else Status.WAIT
 
 
 def test_migration():
-    steps = [bucket_exists, dns_cutover]
+    steps = [step_one, step_two]
     inputs = [
-        {"name": "instance-a", "bucket": "a-bucket"},
-        {"name": "instance-b", "bucket": "b-bucket"},
+        {"name": "instance-a"},
+        {"name": "instance-b"},
     ]
     invoke(steps, inputs)
 ```
@@ -42,21 +42,21 @@ test (it's the expected state for something still in progress);
 `Status.FAIL` always does. Pass `fail_on_wait=True` to `invoke()` to
 also fail on `Status.WAIT`.
 
-A step can also return data for later steps on the same input, e.g. to
-carry a resource ID created by an earlier step:
+A step can also return a value for later steps on the same input to
+use, alongside its `Status`:
 
 ```python
-@step("DISTRIBUTION_CREATED")
-def distribution_created(case) -> Status:
-    return Status.PASS, {"distribution_id": create_distribution(case["bucket"])}
+@step("STEP_ONE")
+def step_one(case) -> tuple[Status, dict]:
+    return Status.PASS, {"key": value_from_step_one(case["name"])}
 
 
-@step("DISTRIBUTION_DEPLOYED")
-def distribution_deployed(case) -> Status:
-    return Status.PASS if is_deployed(case["distribution_id"]) else Status.WAIT
+@step("STEP_TWO")
+def step_two(case) -> Status:
+    return Status.PASS if condition_two(case["key"]) else Status.WAIT
 ```
 
-If a step's returned data would overwrite an existing key — from the
+If a step's returned value would overwrite an existing key — from the
 original input, or a previous step — `invoke()` raises `ValueError`
 rather than silently picking a value.
 
