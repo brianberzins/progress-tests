@@ -293,3 +293,53 @@ def test_invoke_output_has_no_ansi_codes_when_ci_env_var_is_set(capsys, monkeypa
     invoke([exists], [{"name": "instance-a"}])
 
     assert "\033[" not in capsys.readouterr().out
+
+
+def test_invoke_passes_data_from_one_step_to_the_next():
+    seen_ids = []
+
+    @step("CREATE_DISTRIBUTION")
+    def create_distribution(case):
+        return Status.PASS, {"distribution_id": "E123"}
+
+    @step("VERIFY_DEPLOYED")
+    def verify_deployed(case):
+        seen_ids.append(case["distribution_id"])
+        return Status.PASS
+
+    invoke([create_distribution, verify_deployed], [{"name": "instance-a"}])
+
+    assert seen_ids == ["E123"]
+
+
+def test_invoke_does_not_mutate_the_original_input_dict():
+    @step("CREATE_DISTRIBUTION")
+    def create_distribution(case):
+        return Status.PASS, {"distribution_id": "E123"}
+
+    original = {"name": "instance-a"}
+    invoke([create_distribution], [original])
+
+    assert original == {"name": "instance-a"}
+
+
+def test_invoke_raises_when_a_step_tries_to_overwrite_an_input_field():
+    @step("RENAME")
+    def rename(case):
+        return Status.PASS, {"name": "something-else"}
+
+    with pytest.raises(ValueError, match="name"):
+        invoke([rename], [{"name": "instance-a"}])
+
+
+def test_invoke_raises_when_two_steps_both_set_the_same_key():
+    @step("FIRST")
+    def first(case):
+        return Status.PASS, {"distribution_id": "E123"}
+
+    @step("SECOND")
+    def second(case):
+        return Status.PASS, {"distribution_id": "E456"}
+
+    with pytest.raises(ValueError, match="distribution_id"):
+        invoke([first, second], [{"name": "instance-a"}])

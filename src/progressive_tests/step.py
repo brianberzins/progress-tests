@@ -16,11 +16,14 @@ def step(name):
     """Decorate a function as one progressive-test step named `name`.
 
     The wrapped function must take exactly one positional argument (the
-    input) and is expected to return a `Status`. Any exception raised,
-    or any return value that isn't a `Status`, is reported as
-    `Status.FAIL` rather than propagating or defaulting to anything
-    else — an unimplemented or broken check is always a failure, never
-    a silent "not done yet".
+    input) and is expected to return a `Status`, optionally paired with
+    a `dict` of data to make available to later steps for this input,
+    e.g. `return Status.PASS, {"distribution_id": distribution_id}`.
+
+    Any exception raised, or any return value that isn't one of those
+    two shapes, is reported as `Status.FAIL` (with no data) rather than
+    propagating or defaulting to anything else — an unimplemented or
+    broken check is always a failure, never a silent "not done yet".
     """
 
     def decorator(func):
@@ -37,10 +40,23 @@ def step(name):
                 result = func(case)
             except Exception:
                 traceback.print_exc(file=sys.stderr)
-                return Status.FAIL
-            return result if isinstance(result, Status) else Status.FAIL
+                return Status.FAIL, {}
+            return _normalize(result)
 
         wrapper.step_name = name
         return wrapper
 
     return decorator
+
+
+def _normalize(result):
+    if isinstance(result, Status):
+        return result, {}
+    if (
+        isinstance(result, tuple)
+        and len(result) == 2
+        and isinstance(result[0], Status)
+        and isinstance(result[1], dict)
+    ):
+        return result
+    return Status.FAIL, {}

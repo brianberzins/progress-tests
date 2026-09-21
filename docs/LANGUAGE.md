@@ -20,7 +20,10 @@ One instance's set of parameters, evaluated against the same ordered
 sequence of steps as every other input belonging to the same progressive
 test. Not every step necessarily applies to every input. A progressive
 test with exactly one input (or none declared) is not a special case —
-it's the same mechanism with one input instead of many.
+it's the same mechanism with one input instead of many. A step may
+contribute new parameters to an input for later steps to use; two
+different values claimed for the same parameter is ambiguous and is
+never resolved silently.
 
 ## Progressive Test
 

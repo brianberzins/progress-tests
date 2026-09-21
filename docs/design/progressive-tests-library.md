@@ -44,9 +44,15 @@ plus everything decided beyond it.
   checks that only sample live state (e.g. a high-volume log stream) —
   the check author's own return value is the final word on what "pass"
   means for their check.
-- A step may only return `Status` for now. A future fast-follow may let
-  a step optionally return `(Status, dict)`, with the dict passed
-  forward to the next step — **not v1**, tracked in `TODO.md`.
+- A step returns `Status`, optionally paired with a `dict` of data for
+  later steps on the same input: `return Status.PASS, {"distribution_id":
+  distribution_id}`. That data is merged into the input passed to
+  subsequent steps. If a step's returned data would overwrite an
+  existing key — from the original input, or from an earlier step —
+  `invoke()` raises `ValueError` immediately rather than silently
+  picking one value: any ambiguity about which value wins is treated as
+  an authoring bug, not something to resolve quietly. Implemented
+  2026-09-20 (was deferred out of the initial v1 pass).
 
 ## `@step` decorator
 
@@ -175,6 +181,5 @@ simpler, more linear workflows, not treated as a bug to fix later.
 
 ## Open follow-ups (tracked in `TODO.md`)
 
-- Steps optionally returning `(Status, dict)` to pass data forward.
 - Whether duplicate-input-name rejection is too strict in practice —
   revisit once there's real usage.

@@ -42,6 +42,24 @@ test (it's the expected state for something still in progress);
 `Status.FAIL` always does. Pass `fail_on_wait=True` to `invoke()` to
 also fail on `Status.WAIT`.
 
+A step can also return data for later steps on the same input, e.g. to
+carry a resource ID created by an earlier step:
+
+```python
+@step("DISTRIBUTION_CREATED")
+def distribution_created(case) -> Status:
+    return Status.PASS, {"distribution_id": create_distribution(case["bucket"])}
+
+
+@step("DISTRIBUTION_DEPLOYED")
+def distribution_deployed(case) -> Status:
+    return Status.PASS if is_deployed(case["distribution_id"]) else Status.WAIT
+```
+
+If a step's returned data would overwrite an existing key — from the
+original input, or a previous step — `invoke()` raises `ValueError`
+rather than silently picking a value.
+
 ## Dependencies
 
 - Python >= 3.10

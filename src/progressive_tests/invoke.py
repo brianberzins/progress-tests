@@ -39,15 +39,27 @@ def invoke(steps, inputs=None, fail_on_wait=False):
         )
 
 
-def _evaluate(steps, case):
+def _evaluate(steps, original_case):
+    case = dict(original_case)
     statuses = {}
     frontier = Status.PASS
     for s in steps:
-        frontier = s(case)
+        frontier, data = s(case)
         statuses[s.step_name] = frontier
         if frontier is not Status.PASS:
             break
+        _merge(case, data, s.step_name)
     return statuses, frontier
+
+
+def _merge(case, data, step_name):
+    collisions = set(case) & set(data)
+    if collisions:
+        raise ValueError(
+            f"step {step_name!r} tried to overwrite existing data: "
+            f"{', '.join(sorted(collisions))}"
+        )
+    case.update(data)
 
 
 def _labels_for(inputs):

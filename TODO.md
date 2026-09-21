@@ -14,9 +14,6 @@ See `docs/design/progressive-tests-library.md` for the full design.
 
 ## Backlog
 
-- Let a step optionally return `(Status, dict)`, with the dict merged
-  into the input passed to the next step. Deferred from v1 to keep the
-  first implementation's step signature to a single `Status` return.
 - Revisit whether `invoke()` rejecting duplicate input names is too
   strict once there's real usage — currently rejected for the same
   reason as duplicate `STEP_NAME`s (ambiguous table labels).
