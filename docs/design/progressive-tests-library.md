@@ -45,8 +45,8 @@ plus everything decided beyond it.
   the check author's own return value is the final word on what "pass"
   means for their check.
 - A step returns `Status`, optionally paired with a `dict` of data for
-  later steps on the same input: `return Status.PASS, {"key": value}`.
-  That data is merged into the input passed to
+  later steps on the same input: `return Status.PASS, {"example_key":
+  "example_value"}`. That data is merged into the input passed to
   subsequent steps. If a step's returned data would overwrite an
   existing key — from the original input, or from an earlier step —
   `invoke()` raises `ValueError` immediately rather than silently

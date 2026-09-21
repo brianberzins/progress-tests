@@ -48,12 +48,13 @@ use, alongside its `Status`:
 ```python
 @step("STEP_ONE")
 def step_one(case) -> tuple[Status, dict]:
-    return Status.PASS, {"key": value_from_step_one(case["name"])}
+    return Status.PASS, {"example_key": "example_value"}
 
 
 @step("STEP_TWO")
 def step_two(case) -> Status:
-    return Status.PASS if condition_two(case["key"]) else Status.WAIT
+    you_can_use = case["example_key"]
+    return Status.PASS if condition_two(you_can_use) else Status.WAIT
 ```
 
 If a step's returned value would overwrite an existing key — from the
