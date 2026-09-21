@@ -30,7 +30,7 @@ def test_step_turns_a_non_status_return_into_fail():
 def test_step_turns_a_raised_exception_into_fail():
     @step("EXPLODES")
     def broken(case):
-        raise RuntimeError("credentials missing")
+        raise RuntimeError("simulated failure for this test")
 
     assert broken({}) is Status.FAIL
 
