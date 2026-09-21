@@ -100,6 +100,11 @@ after the whole table, rather than interleaved with it.
 - [uv](https://docs.astral.sh/uv/) for dependency management and
   running commands (`uv sync`, `uv run pytest`, `uv run ruff check .`)
 
+## CI
+
+`./test` (lint, format check, the dev test suite, and the example)
+runs on every push to `main` — see `.github/workflows/test.yml`.
+
 ## Deployment
 
 Not published anywhere (no PyPI, no GitHub releases). Install directly
