@@ -34,8 +34,12 @@ def test_migration():
     invoke(steps, inputs)
 ```
 
-Run it like any other pytest test: `pytest`. `invoke()` runs `steps` in
-order for each input, stopping at that input's first step that isn't
+Run it with the bundled runner: `progress-tests [path]` (`path`
+defaults to the current directory). It walks `path` for
+`test_*.py`/`*_test.py` files, imports them, and calls every top-level
+`test_*` function it finds with no arguments — no fixtures, no
+parametrize, no plugin system. `invoke()` runs `steps` in order for
+each input, stopping at that input's first step that isn't
 `Status.PASS`, and prints a color-coded table (one row per input, one
 column per step) to stdout. By default, `Status.WAIT` doesn't fail the
 test (it's the expected state for something still in progress);

@@ -19,9 +19,9 @@ plus everything decided beyond it.
   checks, so it didn't win out despite good concurrency primitives.
 - Built and packaged with `uv`; linted/formatted with `ruff`.
 - Package name `progress-tests` (PyPI), imported as `progress_tests`.
-- The runner is plain `pytest`. There is no custom CLI, no pytest
-  plugin, no registered CLI flags. The library is a plain set of
-  importable functions — nothing more.
+- The runner is a bundled console script, `progress-tests`. See
+  "Runner: from pytest to a custom console script" below for why this
+  supersedes the original all-`pytest` decision.
 
 ## Core model
 
@@ -91,17 +91,17 @@ def test_migration():
 ```
 
 - `invoke(steps, inputs, fail_on_wait=False)` is called once inside an
-  ordinary, no-argument pytest test function. `steps` and `inputs` are
+  ordinary, no-argument `test_*` function. `steps` and `inputs` are
   local to that test function, not module-level globals — step
   functions themselves stay at module scope so they can be reused
   across multiple tests in a file.
-- No `pytest.mark.parametrize`. Each input does **not** become its own
-  independently-reported pytest test; `invoke()` owns the whole input
-  list and the whole test function is one pytest test. This was a
-  deliberate trade against Go-style subtests: getting per-input pytest
-  identity while still rendering one unified table would require a
-  `pytest_terminal_summary` hook (real plugin machinery), which lost out
-  to "just a library" simplicity.
+- No per-input subtest identity. Each input does **not** become its own
+  independently-reported test; `invoke()` owns the whole input list and
+  the whole `test_*` function is one unit of pass/fail as far as the
+  runner is concerned. This was a deliberate trade against Go-style
+  subtests: getting per-input test identity while still rendering one
+  unified table would require real reporter-level machinery, which lost
+  out to "just render the table" simplicity.
 - Validates the composed list at call time (this can only happen once
   the whole list is visible, unlike the decorator's per-function
   checks): rejects duplicate `STEP_NAME`s, and rejects duplicate input
@@ -130,8 +130,8 @@ def test_migration():
   - `fail_on_wait=True` promotes `wait` to a failure too, for the one
     test that opts into it.
 - `invoke()` raises when the test should fail; it has no exit-code logic
-  of its own. Pytest's own exit code (0 if everything passed, 1 if
-  anything failed) is the entire CI-integration story.
+  of its own. The runner's own exit code (0 if everything passed, 1 if
+  anything failed or raised) is the entire CI-integration story.
 - No stderr `STEP_NAME:class` line output. This is an intentional
   divergence from `progressive-test-standard.md`'s shell-oriented
   contract — dropped, not carried forward, since this library owns a
@@ -142,9 +142,60 @@ def test_migration():
 - No built-in checks or log-format parsers (S3 access logs, CloudFront,
   ALB). Pure framework — bring your own (e.g. `boto3`) inside your own
   step functions.
-- No CLI flags, no pytest plugin, no `pytest_addoption`.
+- No CLI flags beyond an optional discovery path. No fixtures, no
+  parametrize, no plugin system of any kind.
 - No dependency graph/DAG.
 - No cross-language stderr contract.
+
+## Runner: from pytest to a custom console script
+
+Revised 2026-09-20, superseding the original "the runner is plain
+pytest" decision above.
+
+While building `example/test_pipeline.py`, we hit a real, structural
+problem: pytest's terminal reporter writes a progress marker (a `.` per
+test, or the full nodeid in `-v`) with no trailing newline, and it lands
+on the same line as whatever a test prints in real time via `-s`.
+Confirmed empirically across `-s`, `-s -q`, and `-s -v`: **every**
+table's header line got a pytest marker glued onto its front the moment
+there was more than one progressive test in a session. There's no
+code-level workaround from inside a step or test function — even
+writing directly to `sys.__stdout__` gets caught by pytest's default
+fd-level capture. Patching around this further (custom pytest plugin
+hooking the terminal reporter, disabling capture globally, etc.) was
+rejected as more machinery than the problem deserves; the simpler fix
+is to not hand stdout to a tool that doesn't fully cooperate with it.
+
+Decision: the library ships its own runner as a console script,
+`progress-tests [path]` (`src/progress_tests/cli.py`, wired up via
+`[project.scripts]`):
+
+- **Discovery**: walk `path` (default: cwd) for `test_*.py`/`*_test.py`
+  files, import each one, and collect its top-level `test_*` functions
+  (checked by `__module__` so a function merely imported into a file
+  isn't double-collected). Call each with zero arguments.
+- **No fixtures, no parametrize, no plugin system.** `invoke()` already
+  raises `AssertionError` on real failure, so "did it raise" is the
+  whole pass/fail signal; any other exception is also caught and
+  counted as a failure (with its traceback printed), rather than
+  crashing the whole run.
+- **Output**: since the runner fully owns stdout, there's no
+  interleaving problem — print each test's label, then let it run (its
+  own `invoke()` call prints the table), then a blank line, repeating
+  for every discovered test, then a final `N passed[, M failed]`
+  summary line. Exit 0 if nothing failed, 1 otherwise.
+- **One table per test function**, not one aggregated table across all
+  discovered tests — different tests likely have different step/column
+  shapes (different steps, different case data), so a combined table
+  would need to reconcile heterogeneous columns or force a
+  lowest-common-denominator layout. Simpler to keep them separate,
+  matching everything built so far.
+
+This only changes how a library *consumer's* progressive tests are run.
+The library's own dev/test suite (`tests/`) keeps using pytest
+(`uv run pytest`) — that's how `invoke()`/`step()` themselves are
+verified, a separate concern from what tool consumers use to run their
+progressive tests.
 
 ## Rejected: DAG/dependency generalization
 
@@ -162,9 +213,11 @@ simpler, more linear workflows, not treated as a bug to fix later.
 ## Resolution of `python-library-notes.md`, item by item
 
 - **0 (DAG/fork-join generalization):** Rejected — see above.
-- **1 (two faces: function + CLI):** Superseded. There's no CLI face at
-  all — `pytest` is the runner; a step is a plain decorated function
-  called via `invoke()` inside an ordinary pytest test.
+- **1 (two faces: function + CLI):** Adopted, in a different shape than
+  proposed. A step is a plain decorated function called via `invoke()`
+  inside an ordinary `test_*` function; the "CLI face" is the bundled
+  `progress-tests` runner (discovery + invocation), not per-step CLI
+  flags. See "Runner: from pytest to a custom console script" above.
 - **2 (real enum internally):** Adopted. `Status.PASS`/`WAIT`/`FAIL`.
 - **3 (parallelize rows by default):** Dropped. `invoke()` runs inputs
   sequentially; there's no CLI/watch mode to make this matter yet.
