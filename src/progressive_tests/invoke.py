@@ -2,9 +2,14 @@ from collections import Counter
 
 from .render import color_enabled, render_table
 from .status import Status
+from .step import Case, Step
 
 
-def invoke(steps, inputs=None, fail_on_wait=False):
+def invoke(
+    steps: list[Step],
+    inputs: list[Case] | None = None,
+    fail_on_wait: bool = False,
+) -> None:
     """Run `steps`, in order, against each input in `inputs`.
 
     Each input is evaluated independently: steps run in order until one
@@ -22,8 +27,8 @@ def invoke(steps, inputs=None, fail_on_wait=False):
     labels = _labels_for(inputs)
     _validate_labels(labels)
 
-    rows = []
-    failing_labels = []
+    rows: list[tuple[str, dict[str, Status]]] = []
+    failing_labels: list[str] = []
     for label, case in zip(labels, inputs, strict=True):
         statuses, frontier = _evaluate(steps, case)
         rows.append((label, statuses))
@@ -39,9 +44,11 @@ def invoke(steps, inputs=None, fail_on_wait=False):
         )
 
 
-def _evaluate(steps, original_case):
+def _evaluate(
+    steps: list[Step], original_case: Case
+) -> tuple[dict[str, Status], Status]:
     case = dict(original_case)
-    statuses = {}
+    statuses: dict[str, Status] = {}
     frontier = Status.PASS
     for s in steps:
         frontier, data = s(case)
@@ -52,7 +59,7 @@ def _evaluate(steps, original_case):
     return statuses, frontier
 
 
-def _merge(case, data, step_name):
+def _merge(case: Case, data: Case, step_name: str) -> None:
     collisions = set(case) & set(data)
     if collisions:
         raise ValueError(
@@ -62,12 +69,12 @@ def _merge(case, data, step_name):
     case.update(data)
 
 
-def _labels_for(inputs):
+def _labels_for(inputs: list[Case]) -> list[str]:
     return [case.get("name", f"input[{i}]") for i, case in enumerate(inputs)]
 
 
-def _validate_steps(steps):
-    names = []
+def _validate_steps(steps: list[Step]) -> list[str]:
+    names: list[str] = []
     for s in steps:
         if not hasattr(s, "step_name"):
             raise TypeError(f"{s!r} was not decorated with @step")
@@ -76,11 +83,11 @@ def _validate_steps(steps):
     return names
 
 
-def _validate_labels(labels):
+def _validate_labels(labels: list[str]) -> None:
     _reject_duplicates(labels, "input name")
 
 
-def _reject_duplicates(items, kind):
+def _reject_duplicates(items: list[str], kind: str) -> None:
     duplicates = {item for item, count in Counter(items).items() if count > 1}
     if duplicates:
         raise ValueError(f"duplicate {kind}(s): {', '.join(sorted(duplicates))}")

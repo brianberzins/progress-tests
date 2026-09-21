@@ -2,8 +2,14 @@ import functools
 import inspect
 import sys
 import traceback
+from collections.abc import Callable
+from typing import Any, Protocol
 
 from .status import Status
+
+Case = dict[str, Any]
+StepResult = Status | tuple[Status, Case]
+StepFunction = Callable[[Case], StepResult]
 
 _POSITIONAL_KINDS = (
     inspect.Parameter.POSITIONAL_ONLY,
@@ -12,13 +18,22 @@ _POSITIONAL_KINDS = (
 )
 
 
-def step(name):
+class Step(Protocol):
+    """A function decorated with `@step`: callable with a `case`, and
+    carrying the `step_name` it was registered under."""
+
+    step_name: str
+
+    def __call__(self, case: Case) -> tuple[Status, Case]: ...
+
+
+def step(name: str) -> Callable[[StepFunction], Step]:
     """Decorate a function as one progressive-test step named `name`.
 
     The wrapped function must take exactly one positional argument (the
     input) and is expected to return a `Status`, optionally paired with
     a `dict` of data to make available to later steps for this input,
-    e.g. `return Status.PASS, {"distribution_id": distribution_id}`.
+    e.g. `return Status.PASS, {"key": value}`.
 
     Any exception raised, or any return value that isn't one of those
     two shapes, is reported as `Status.FAIL` (with no data) rather than
@@ -26,7 +41,7 @@ def step(name):
     broken check is always a failure, never a silent "not done yet".
     """
 
-    def decorator(func):
+    def decorator(func: StepFunction) -> Step:
         params = list(inspect.signature(func).parameters.values())
         if len(params) != 1 or params[0].kind not in _POSITIONAL_KINDS:
             raise TypeError(
@@ -35,7 +50,7 @@ def step(name):
             )
 
         @functools.wraps(func)
-        def wrapper(case):
+        def wrapper(case: Case) -> tuple[Status, Case]:
             try:
                 result = func(case)
             except Exception:
@@ -43,13 +58,13 @@ def step(name):
                 return Status.FAIL, {}
             return _normalize(result)
 
-        wrapper.step_name = name
-        return wrapper
+        wrapper.step_name = name  # type: ignore[attr-defined]
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
 
-def _normalize(result):
+def _normalize(result: StepResult) -> tuple[Status, Case]:
     if isinstance(result, Status):
         return result, {}
     if (
