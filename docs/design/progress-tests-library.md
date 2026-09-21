@@ -40,10 +40,14 @@ plus everything decided beyond it.
   outside the main gating chain (e.g. a stop-gap escalation that only
   fires if an earlier step stalls). Write those as ordinary code outside
   the library if needed.
-- `Status` stays exactly 3-valued. No confidence/sampling annotation for
-  checks that only sample live state (e.g. a high-volume log stream) —
-  the check author's own return value is the final word on what "pass"
-  means for their check.
+- `Status` stays exactly 3-valued **as a kind** — `PASS`/`WAIT`/`FAIL`.
+  No confidence/sampling annotation for checks that only sample live
+  state (e.g. a high-volume log stream) — the check author's own
+  return value is the final word on what "pass" means for their check.
+  Each kind can carry an optional message and detail; see "Status
+  messages" below — this is display metadata about the kind, not a
+  fourth/fifth value, and two `Status`es of the same kind always
+  compare equal regardless of message/detail.
 - A step returns `Status`, optionally paired with a `dict` of data for
   later steps on the same input: `return Status.PASS, {"example_key":
   "example_value"}`. That data is merged into the input passed to
@@ -64,6 +68,56 @@ Validates and wraps a single function, at decoration time:
   is the mechanism that makes "unimplemented is `fail`, never `wait`"
   true by construction — there is no code path that produces `wait`
   except an explicit `return Status.WAIT`.
+- The auto-generated `Status.FAIL` carries a short message identifying
+  the known cause — `"assert fail"` for `AssertionError`, `"exception"`
+  for any other exception type, `"invalid step return value"` for a
+  return that isn't `Status` or `(Status, dict)` — plus the full
+  traceback (for the two exception cases) as `detail`, which `invoke()`
+  prints after the table rather than immediately to stderr. See "Status
+  messages" below.
+
+## Status messages
+
+Added 2026-09-21. A `Status` is a kind (`PASS`/`WAIT`/`FAIL`) plus an
+optional `message: str | None` and `detail: str | None`. `Status.PASS`,
+`Status.WAIT`, `Status.FAIL` are the plain, message-less values, used
+exactly as before; each is also **callable** to attach a message and
+return a new `Status` of the same kind: `Status.WAIT("waiting on
+backup")`. Two `Status`es compare equal — and hash equal — whenever
+their kind matches, regardless of message/detail, so `outcome ==
+Status.FAIL`-style checks and `_GLYPH`/`_COLOR` dict lookups keyed by
+`Status` are unaffected by whether a message is attached.
+
+- **Where it renders**: `message`, when present, replaces the default
+  `pass`/`wait`/`fail` word in that cell of the table — `+ <message>`,
+  `! <message>`, `X <message>`, in the status's usual color. With no
+  message, the cell renders exactly as before. This was a deliberate
+  choice against a separate "details" section under the table for
+  short messages: they're meant to be scannable at a glance, in place,
+  not looked up elsewhere.
+- **Column width**: no longer a fixed function of the status word
+  alone — `render_table` measures the actual rendered width of every
+  cell in a column (including any message) and widens the column to
+  fit the longest one. This subsumes a real bug (`render.py`'s old
+  `status_word_width` calculation didn't account for the glyph+space
+  prefix, so any step name shorter than `"+ wait"` produced a column
+  narrower than what actually printed, drifting every column after
+  it — found via real output once step names got shortened).
+- **Keep messages short**: they render inline in a fixed-width column,
+  and a long one widens that column for every row, not just the one
+  that needed it. Not enforced (no truncation) — a documented
+  expectation on step authors, consistent with this library's general
+  stance of trusting the caller rather than validating what it can't
+  usefully validate.
+- **`detail`**: a longer, optional payload (typically a traceback) not
+  shown in the table at all — `invoke()` prints it once, after the
+  whole table, labeled by input and step name. Keeps the table itself
+  a stable, scannable grid regardless of how much detail a failure
+  carries, and keeps a stack trace from interleaving with table output
+  the way pytest's own capture used to (see "Runner" section above).
+  Available to any step, not just the framework's own exception
+  handling — `Status.FAIL("bucket missing", detail="...")` is a
+  supported call.
 
 ## `invoke()` — the engine
 

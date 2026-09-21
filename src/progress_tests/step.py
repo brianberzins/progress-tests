@@ -1,6 +1,5 @@
 import functools
 import inspect
-import sys
 import traceback
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol
@@ -55,9 +54,10 @@ def step(name: str) -> Callable[[StepFunction], Step]:
         def wrapper(case: Case) -> tuple[Status, dict[str, Any]]:
             try:
                 result = func(case)
+            except AssertionError:
+                return Status.FAIL("assert fail", detail=traceback.format_exc()), {}
             except Exception:
-                traceback.print_exc(file=sys.stderr)
-                return Status.FAIL, {}
+                return Status.FAIL("exception", detail=traceback.format_exc()), {}
             return _normalize(result)
 
         wrapper.step_name = name  # type: ignore[attr-defined]
@@ -76,4 +76,4 @@ def _normalize(result: StepResult) -> tuple[Status, dict[str, Any]]:
         and isinstance(result[1], dict)
     ):
         return result
-    return Status.FAIL, {}
+    return Status.FAIL("invalid step return value"), {}

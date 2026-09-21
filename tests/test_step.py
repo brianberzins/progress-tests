@@ -27,12 +27,45 @@ def test_step_turns_a_non_status_return_into_fail():
     assert broken({}) == (Status.FAIL, {})
 
 
+def test_step_labels_an_invalid_return_value_with_a_short_message():
+    @step("FORGOT_TO_RETURN_STATUS")
+    def broken(case):
+        return "pass"
+
+    status, _ = broken({})
+
+    assert status.message == "invalid step return value"
+
+
 def test_step_turns_a_raised_exception_into_fail():
     @step("EXPLODES")
     def broken(case):
         raise RuntimeError("simulated failure for this test")
 
     assert broken({}) == (Status.FAIL, {})
+
+
+def test_step_labels_a_raised_exception_with_a_short_message_and_a_traceback():
+    @step("EXPLODES")
+    def broken(case):
+        raise RuntimeError("simulated failure for this test")
+
+    status, _ = broken({})
+
+    assert status.message == "exception"
+    assert "RuntimeError" in status.detail
+    assert "simulated failure for this test" in status.detail
+
+
+def test_step_labels_a_failed_assertion_distinctly_from_other_exceptions():
+    @step("ASSERTS")
+    def broken(case):
+        assert 1 == 2, "the real condition"
+
+    status, _ = broken({})
+
+    assert status.message == "assert fail"
+    assert "the real condition" in status.detail
 
 
 def test_step_turns_an_unimplemented_check_into_fail_not_wait():

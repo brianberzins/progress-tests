@@ -359,3 +359,41 @@ def test_invoke_reports_fail_when_a_step_mutates_case_directly(capsys):
         invoke([sneaky], [{"name": "instance-a"}])
 
     assert "X" in capsys.readouterr().out
+
+
+def test_invoke_prints_a_traceback_after_the_table_not_interleaved_with_it(capsys):
+    @step("EXPLODES")
+    def explodes(case):
+        raise RuntimeError("simulated failure for this test")
+
+    with pytest.raises(AssertionError):
+        invoke([explodes], [{"name": "instance-a"}])
+
+    out = capsys.readouterr().out
+    table_end = out.index("X exception")
+    traceback_start = out.index("RuntimeError")
+
+    assert traceback_start > table_end
+    assert "simulated failure for this test" in out
+
+
+def test_invoke_does_not_print_a_traceback_section_when_nothing_raised(capsys):
+    @step("EXISTS")
+    def exists(case):
+        return Status.PASS
+
+    invoke([exists], [{"name": "instance-a"}])
+
+    out = capsys.readouterr().out
+    assert "Traceback" not in out
+
+
+def test_invoke_shows_a_custom_message_instead_of_the_default_status_word(capsys):
+    @step("BACKUP")
+    def backup(case):
+        return Status.WAIT("waiting on backup")
+
+    invoke([backup], [{"name": "instance-a"}])
+
+    out = capsys.readouterr().out
+    assert "waiting on backup" in out

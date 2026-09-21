@@ -65,6 +65,29 @@ If a step's returned value would overwrite an existing key — from the
 original input, or a previous step — `invoke()` raises `ValueError`
 rather than silently picking a value.
 
+### Status messages
+
+`Status.PASS`/`WAIT`/`FAIL` are the plain values, but each is also
+callable to attach a short message, shown in the table cell in place
+of the default `pass`/`wait`/`fail` word:
+
+```python
+@step("BACKUP")
+def backup(case) -> Status:
+    return Status.WAIT("waiting on nightly backup")
+```
+
+Keep messages short — they render inline in a fixed-width table
+column, and a long one widens that column for every row. A `Status`
+with a message still compares equal to the plain status of the same
+kind (`Status.WAIT("...") == Status.WAIT`), so `fail_on_wait` and
+similar checks are unaffected.
+
+`@step` automatically attaches a message when a step function raises:
+`"assert fail"` for an `AssertionError`, `"exception"` for anything
+else. Either way, the full traceback isn't lost — it prints once,
+after the whole table, rather than interleaved with it.
+
 ## Dependencies
 
 - Python >= 3.10

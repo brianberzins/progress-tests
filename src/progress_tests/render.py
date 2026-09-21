@@ -11,7 +11,6 @@ _COLOR: dict[Status, str] = {
 }
 _RESET = "\033[0m"
 _GUTTER = "  "
-_CELL_PREFIX_WIDTH = len("+ ")  # every cell is one glyph, then a space, then the word
 
 
 def color_enabled() -> bool:
@@ -25,9 +24,13 @@ def render_table(
     rows: list[tuple[str, dict[str, Status]]],
     use_color: bool,
 ) -> str:
-    status_word_width = max(len(s.name) for s in Status)
     label_width = max((len(label) for label, _ in rows), default=len("NAME"))
-    column_widths = {name: max(len(name), status_word_width) for name in step_names}
+    column_widths = {name: len(name) for name in step_names}
+    for _, statuses in rows:
+        for name in step_names:
+            status = statuses.get(name)
+            if status is not None:
+                column_widths[name] = max(column_widths[name], len(_cell_text(status)))
 
     header = f"{'NAME':<{label_width}}"
     for name in step_names:
@@ -45,10 +48,15 @@ def render_table(
     return "\n".join(lines)
 
 
+def _cell_text(status: Status) -> str:
+    word = status.message if status.message else status.name.lower()
+    return f"{_GLYPH[status]} {word}"
+
+
 def _render_cell(status: Status | None, width: int, use_color: bool) -> str:
     if status is None:
         return " " * width
-    text = f"{_GLYPH[status]} {status.name.lower():<{width - _CELL_PREFIX_WIDTH}}"
+    text = f"{_cell_text(status):<{width}}"
     if not use_color:
         return text
     return f"{_COLOR[status]}{text}{_RESET}"

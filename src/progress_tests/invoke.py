@@ -34,10 +34,11 @@ def invoke(
     for label, case in zip(labels, inputs, strict=True):
         statuses, outcome = _evaluate(steps, case)
         rows.append((label, statuses))
-        if outcome is Status.FAIL or (outcome is Status.WAIT and fail_on_wait):
+        if outcome == Status.FAIL or (outcome == Status.WAIT and fail_on_wait):
             failing_labels.append(label)
 
     print(render_table(step_names, rows, use_color=color_enabled()))
+    _print_details(rows)
 
     if failing_labels:
         raise AssertionError(
@@ -58,10 +59,21 @@ def _evaluate(
         # rather than silently bypassing the overwrite check in _merge.
         outcome, data = s(MappingProxyType(case))
         statuses[s.step_name] = outcome
-        if outcome is not Status.PASS:
+        if outcome != Status.PASS:
             break
         _merge(case, data, s.step_name)
     return statuses, outcome
+
+
+def _print_details(rows: list[tuple[str, dict[str, Status]]]) -> None:
+    # Any traceback (from an unhandled exception or a mutated-case bug --
+    # see the comment in _evaluate) prints once, after the table, rather
+    # than interleaved with it as it's discovered.
+    for label, statuses in rows:
+        for step_name, status in statuses.items():
+            if status.detail:
+                print(f"\n{label} / {step_name}:")
+                print(status.detail, end="")
 
 
 def _merge(case: dict[str, Any], data: dict[str, Any], step_name: str) -> None:
