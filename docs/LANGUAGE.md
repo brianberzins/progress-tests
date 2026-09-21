@@ -7,8 +7,11 @@ see `docs/design/` for those.
 
 One deterministically-verifiable checkpoint in a progressive test's
 ordered sequence. Identified by a `STEP_NAME`. A step's position in the
-sequence is positional, not separately declared: a step implicitly
-depends on the step immediately before it in the sequence.
+sequence is positional, not separately declared. Every step is
+evaluated for every input regardless of any other step's result — a
+step that reads a parameter an earlier step would have contributed is
+naturally gated by that data being present, not by the runner stopping
+early on its behalf.
 
 ## Class
 
@@ -27,8 +30,8 @@ never resolved silently.
 
 ## Progressive Test
 
-An ordered sequence of steps, evaluated in order for each input,
-stopping at that input's first step that is not `pass`. A fully-passing
+An ordered sequence of steps, every one of which is evaluated for each
+input regardless of any other step's result. A fully-passing
 progressive test is a long-lived assertion of the final desired state,
 not a disposable migration artifact — it keeps running in CI after the
 state it verifies is reached.

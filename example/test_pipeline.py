@@ -14,6 +14,8 @@ def source_exists(case) -> Status:
 @step("POPULATED")
 def source_populated(case) -> tuple[Status, dict]:
     source = FILES_DIR / case["name"] / "source.txt"
+    if not source.is_file():
+        return Status.WAIT("no source"), {}
     lines = source.read_text().splitlines()
     if not lines:
         return Status.WAIT("empty"), {}

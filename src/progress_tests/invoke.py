@@ -21,9 +21,10 @@ def invoke(
     rows: list[tuple[str, dict[str, Status]]] = []
     failing_labels: list[str] = []
     for label, case in zip(labels, inputs, strict=True):
-        statuses, outcome = _evaluate(steps, case)
+        statuses = _evaluate(steps, case)
         rows.append((label, statuses))
-        if outcome.kind == _Kind.FAIL or (outcome.kind == _Kind.WAIT and fail_on_wait):
+        kinds = {s.kind for s in statuses.values()}
+        if _Kind.FAIL in kinds or (_Kind.WAIT in kinds and fail_on_wait):
             failing_labels.append(label)
 
     print(render_table(step_names, rows, use_color=color_enabled()))
@@ -36,22 +37,21 @@ def invoke(
         )
 
 
-def _evaluate(
-    steps: list[Step], original_case: Case
-) -> tuple[dict[str, Status], Status]:
+def _evaluate(steps: list[Step], original_case: Case) -> dict[str, Status]:
     case: dict[str, Any] = dict(original_case)
     statuses: dict[str, Status] = {}
-    outcome = Status.PASS("no steps")
     for s in steps:
         # A step gets a read-only view of the accumulated case -- mutating
         # it directly raises (caught by @step, reported as Status.FAIL)
         # rather than silently bypassing the overwrite check in _merge.
+        # Every step runs regardless of earlier steps' outcomes; one that
+        # reads data an earlier non-PASS step never merged hits a KeyError,
+        # which @step already turns into Status.FAIL("exception", ...).
         outcome, data = s(MappingProxyType(case))
         statuses[s.step_name] = outcome
-        if outcome.kind != _Kind.PASS:
-            break
-        _merge(case, data, s.step_name)
-    return statuses, outcome
+        if outcome.kind == _Kind.PASS:
+            _merge(case, data, s.step_name)
+    return statuses
 
 
 def _print_details(rows: list[tuple[str, dict[str, Status]]]) -> None:

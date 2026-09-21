@@ -52,7 +52,7 @@ def test_invoke_defaults_to_a_single_implicit_input_when_none_given():
     assert seen == [{}]
 
 
-def test_invoke_stops_at_the_first_non_passing_step_for_that_input():
+def test_invoke_runs_every_step_even_after_an_earlier_wait():
     calls = []
 
     @step("BUCKET_EXISTS")
@@ -67,7 +67,26 @@ def test_invoke_stops_at_the_first_non_passing_step_for_that_input():
 
     invoke([bucket_exists, dns_cutover], [{"name": "instance-a"}])
 
-    assert calls == ["BUCKET_EXISTS"]
+    assert calls == ["BUCKET_EXISTS", "DNS_CUTOVER"]
+
+
+def test_invoke_runs_every_step_even_after_an_earlier_fail():
+    calls = []
+
+    @step("BUCKET_EXISTS")
+    def bucket_exists(case):
+        calls.append("BUCKET_EXISTS")
+        return Status.FAIL("boom")
+
+    @step("DNS_CUTOVER")
+    def dns_cutover(case):
+        calls.append("DNS_CUTOVER")
+        return Status.PASS("ok")
+
+    with pytest.raises(AssertionError):
+        invoke([bucket_exists, dns_cutover], [{"name": "instance-a"}])
+
+    assert calls == ["BUCKET_EXISTS", "DNS_CUTOVER"]
 
 
 def test_invoke_continues_past_a_passing_step_to_the_next_one():
@@ -193,8 +212,9 @@ def test_invoke_a_three_step_migration_across_inputs_at_different_stages(capsys)
 
     out = capsys.readouterr().out
     lines = {line.split()[0]: line for line in out.splitlines()[1:]}
-    assert lines["not-started"].count("!") == 1
-    assert lines["in-progress"].count("!") == 1
+    assert lines["not-started"].count("!") == 3
+    assert lines["in-progress"].count("+") == 1
+    assert lines["in-progress"].count("!") == 2
     assert lines["fully-migrated"].count("+") == 3
 
 
@@ -226,7 +246,7 @@ def test_invoke_shows_the_fail_glyph_for_a_failed_step(capsys):
     assert "X" in capsys.readouterr().out
 
 
-def test_invoke_leaves_unreached_steps_blank_not_passing_or_failing(capsys):
+def test_invoke_shows_a_later_steps_own_status_after_an_earlier_wait(capsys):
     @step("BUCKET_EXISTS")
     def bucket_exists(case):
         return Status.WAIT("waiting")
@@ -239,8 +259,7 @@ def test_invoke_leaves_unreached_steps_blank_not_passing_or_failing(capsys):
 
     row = capsys.readouterr().out.splitlines()[1]
     assert "!" in row
-    assert "+" not in row
-    assert "X" not in row
+    assert "+" in row
 
 
 def test_invoke_output_has_ansi_codes_by_default_even_off_a_tty(capsys, monkeypatch):
@@ -285,6 +304,24 @@ def test_invoke_passes_data_from_one_step_to_the_next():
     assert seen_ids == ["E123"]
 
 
+def test_invoke_reports_fail_when_a_step_reads_data_an_earlier_wait_never_merged(
+    capsys,
+):
+    @step("CREATE_DISTRIBUTION")
+    def create_distribution(case):
+        return Status.WAIT("waiting")
+
+    @step("VERIFY_DEPLOYED")
+    def verify_deployed(case):
+        return Status.PASS("ok") if case["distribution_id"] else Status.WAIT("waiting")
+
+    with pytest.raises(AssertionError):
+        invoke([create_distribution, verify_deployed], [{"name": "instance-a"}])
+
+    row = capsys.readouterr().out.splitlines()[1]
+    assert "X exception" in row
+
+
 def test_invoke_does_not_mutate_the_original_input_dict():
     @step("CREATE_DISTRIBUTION")
     def create_distribution(case):
@@ -319,10 +356,6 @@ def test_invoke_raises_when_two_steps_both_set_the_same_key():
 
 
 def test_invoke_reports_fail_when_a_step_mutates_case_directly(capsys):
-    """A step is only meant to pass data forward via its return value,
-    checked by _merge for collisions. Mutating the case it was given
-    bypasses that check entirely -- this must not silently succeed."""
-
     @step("SNEAKY")
     def sneaky(case):
         case["key"] = "mutated directly, not returned"
@@ -359,6 +392,67 @@ def test_invoke_does_not_print_a_traceback_section_when_nothing_raised(capsys):
 
     out = capsys.readouterr().out
     assert "Traceback" not in out
+
+
+def test_invoke_prints_a_real_traceback_not_just_the_exception_message(capsys):
+    @step("EXPLODES")
+    def explodes(case):
+        raise RuntimeError("simulated failure for this test")
+
+    with pytest.raises(AssertionError):
+        invoke([explodes], [{"name": "instance-a"}])
+
+    out = capsys.readouterr().out
+    assert "Traceback (most recent call last)" in out
+    assert "raise RuntimeError" in out
+
+
+def test_invoke_prints_an_assertion_traceback_after_the_table(capsys):
+    @step("ASSERTS")
+    def asserts(case):
+        assert 1 == 2, "the real condition"
+
+    with pytest.raises(AssertionError):
+        invoke([asserts], [{"name": "instance-a"}])
+
+    out = capsys.readouterr().out
+    table_end = out.index("X assert fail")
+    traceback_start = out.index("AssertionError")
+
+    assert traceback_start > table_end
+    assert "the real condition" in out
+
+
+def test_invoke_labels_the_traceback_by_input_and_step_name(capsys):
+    @step("EXPLODES")
+    def explodes(case):
+        raise RuntimeError("simulated failure for this test")
+
+    with pytest.raises(AssertionError):
+        invoke([explodes], [{"name": "instance-a"}])
+
+    out = capsys.readouterr().out
+    assert "instance-a / EXPLODES:" in out
+
+
+def test_invoke_prints_a_traceback_for_every_failing_input(capsys):
+    @step("EXPLODES")
+    def explodes(case):
+        if case["name"] == "instance-a":
+            raise RuntimeError("boom from instance-a")
+        raise ValueError("boom from instance-b")
+
+    with pytest.raises(AssertionError):
+        invoke(
+            [explodes],
+            [{"name": "instance-a"}, {"name": "instance-b"}],
+        )
+
+    out = capsys.readouterr().out
+    assert "instance-a / EXPLODES:" in out
+    assert "boom from instance-a" in out
+    assert "instance-b / EXPLODES:" in out
+    assert "boom from instance-b" in out
 
 
 def test_invoke_shows_a_custom_message_instead_of_the_default_status_word(capsys):

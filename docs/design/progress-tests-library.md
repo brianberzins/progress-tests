@@ -28,14 +28,15 @@ plus everything decided beyond it.
 - A **step** is a function decorated `@step("NAME")`, taking exactly one
   positional argument (the current input) and returning a `Status`
   (`PASS`/`WAIT`/`FAIL` — a real enum internally, never a bare string).
-- Steps form a **strict linear sequence** — no dependency graph, no
-  `depends_on` field. A step's position in the list a test assembles
-  *is* its dependency (it implicitly depends on the step before it).
-  This is a deliberate simplicity choice, not an oversight: it nudges
-  authors toward linear workflows. A workflow with a genuine fork/join
-  is expected to be flattened by the test author, accepting that an
-  independent branch can appear to wait behind an unrelated stalled step
-  — see "Rejected: DAG/dependency generalization" below.
+- Steps form a **strict linear list** — no dependency graph, no
+  `depends_on` field. A step's position in the list only orders the
+  table's columns and the sequence data flows through; it is no longer
+  a gate. Revised 2026-09-22 (see "Every step always runs" below):
+  every step is evaluated for every input regardless of any other
+  step's result, so a step reading data an earlier step would have
+  contributed is gated by that data actually being present (which
+  fails structurally — see below), not by the runner stopping early on
+  its behalf.
 - No first-class support for conditional/escalation steps that sit
   outside the main gating chain (e.g. a stop-gap escalation that only
   fires if an earlier step stalls). Write those as ordinary code outside
@@ -184,9 +185,9 @@ def test_migration():
   the whole list is visible, unlike the decorator's per-function
   checks): rejects duplicate `STEP_NAME`s, and rejects duplicate input
   names, since both would produce ambiguous table identifiers.
-- For each input independently: walks `steps` in order, stopping at the
-  first step that isn't `Status.PASS`. Steps after that point are not
-  evaluated for that input and render as blank cells.
+- For each input independently: walks `steps` in order, evaluating
+  every one regardless of any other step's result — see "Every step
+  always runs" below.
 - Input row label is `input["name"]`, falling back to `input[{i}]`
   (by position) when `"name"` is absent.
 - Renders one color-coded table to stdout: one row per input, one
@@ -196,17 +197,27 @@ def test_migration():
   across terminals/fonts despite looking that way in isolation (found
   by a real misaligned table, not a theoretical concern), so this
   library diverges from the standard's suggested glyphs on purpose.
-- Color auto-detects and is **not configurable**: off if
-  `sys.stdout.isatty()` is false, or `NO_COLOR`/`CI` env vars are set;
-  on otherwise.
-- Pass/fail policy, per input, based on the status where evaluation
-  stopped:
-  - `pass` — fine.
-  - `wait` — does not fail the test, by default. This is the expected,
-    common state for an in-progress migration.
-  - `fail` — always fails the test, unconditionally.
-  - `fail_on_wait=True` promotes `wait` to a failure too, for the one
-    test that opts into it.
+- Color is **on by default, unconditionally** — not gated by
+  `sys.stdout.isatty()` or a `CI` env var check. Revised 2026-09-22:
+  the original tty-detection default broke a real workflow (`watch
+  --color progress-tests example` showed no color, since `watch`
+  captures the child's stdout through a pipe, so `isatty()` is always
+  false there regardless of the terminal `watch` itself is drawn in —
+  there is no way for a `--color`-style flag on `watch`'s side to
+  produce color the wrapped command never emitted). Off via `NO_COLOR`
+  (the environment variable) or `--no-color` (the CLI flag, added the
+  same day now that the library owns a real CLI — see "No CLI flags"
+  below). The `CI` env var check was dropped as redundant with the
+  general-purpose `--no-color`/`NO_COLOR` mechanism.
+- Pass/fail policy, per input, based on the set of kinds among *all*
+  of that input's step results (not just one "stopping" status — see
+  "Every step always runs" below):
+  - every step `pass` — fine.
+  - any step `wait`, none `fail` — does not fail the test, by default.
+    This is the expected, common state for an in-progress migration.
+  - any step `fail` — always fails the test, unconditionally.
+  - `fail_on_wait=True` promotes any `wait` to a failure too, for the
+    one test that opts into it.
 - `invoke()` raises when the test should fail; it has no exit-code logic
   of its own. The runner's own exit code (0 if everything passed, 1 if
   anything failed or raised) is the entire CI-integration story.
@@ -215,13 +226,55 @@ def test_migration():
   contract — dropped, not carried forward, since this library owns a
   private practices standard rather than a community one.
 
+## Every step always runs
+
+Revised 2026-09-22, reversing the original "stop at the first
+non-pass" behavior (see "Rejected: DAG/dependency generalization"
+below, which this supersedes). `_evaluate()` now runs every step in
+`steps`, in order, for every input, regardless of any earlier step's
+result. A step's position still orders the table's columns and the
+sequence data flows through (`_merge()` still only merges a step's
+returned data on `PASS`), but it no longer gates whether a later step
+is even attempted.
+
+Rationale: the whole design point of a progressive test is that it's
+testable from the start — every step should be exercisable and show a
+real result for every input, not hide behind blank cells because an
+unrelated earlier step hasn't passed yet. The old behavior also hid
+genuinely useful information: a step three positions after a stalled
+one might already be true (e.g. someone manually finished a later
+stage out of order), and the old table simply never said so.
+
+The real cost: a step that reads case data an earlier step would have
+contributed (via its `PASS` return's data dict) can no longer assume
+that data exists, since the earlier step may not have reached `PASS`.
+Reading a missing key raises `KeyError`, which `@step`'s existing
+exception handling already turns into `Status.FAIL("exception", ...)`
+with a traceback printed after the table — no new mechanism needed,
+but a step author who doesn't defend against this gets a `FAIL` for
+what's really just "still in progress," which is misleading. `@step`
+does not auto-detect or handle this on the author's behalf.
+
+A small `wait_for_case_data(case, *keys)` helper (returning
+`Status.WAIT` when any key is missing, `None` otherwise, for use as an
+early-return guard) was proposed and built the same day, then
+**rejected** — no shortcut method for this. A step that depends on
+prior data guards itself with ordinary code instead, e.g.
+`example/test_pipeline.py`'s `COPY` step checks `copy.is_file()`
+before ever touching `case["line_count"]`, which happens to be a
+sufficient guard given how its own fixtures are shaped. There is no
+library-provided helper for this — it's on the step author to notice
+and guard against, the same as any other data-dependency bug.
+
 ## Explicitly out of scope for v1
 
 - No built-in checks or log-format parsers (S3 access logs, CloudFront,
   ALB). Pure framework — bring your own (e.g. `boto3`) inside your own
   step functions.
-- No CLI flags beyond an optional discovery path. No fixtures, no
-  parametrize, no plugin system of any kind.
+- No CLI flags beyond an optional discovery path and `--no-color`
+  (added 2026-09-22, see the color bullet above — a real, narrow need
+  once the library owned its own CLI, not a general flags system). No
+  fixtures, no parametrize, no plugin system of any kind.
 - No dependency graph/DAG.
 - No cross-language stderr contract.
 
@@ -245,8 +298,8 @@ rejected as more machinery than the problem deserves; the simpler fix
 is to not hand stdout to a tool that doesn't fully cooperate with it.
 
 Decision: the library ships its own runner as a console script,
-`progress-tests [path]` (`src/progress_tests/cli.py`, wired up via
-`[project.scripts]`):
+`progress-tests [path] [--no-color]` (`src/progress_tests/cli.py`,
+wired up via `[project.scripts]`):
 
 - **Discovery**: walk `path` (default: cwd) for `test_*.py`/`*_test.py`
   files, import each one, and collect its top-level `test_*` functions
@@ -278,19 +331,36 @@ progressive tests.
 ## Rejected: DAG/dependency generalization
 
 `python-library-notes.md` item #0 proposed generalizing "stop at first
-non-pass" into a real dependency graph (`depends_on` per step,
-short-circuit to `wait` based on declared edges instead of list
-position, evaluate every step every run). This was considered and
-**explicitly rejected**: keeping steps a plain ordered list matters more
-for table-column stability and for keeping test authoring simple than
-correctly handling forks/joins does. The known consequence (a step that
-doesn't really depend on its immediate predecessor still gets gated
-behind it) is accepted as a guardrail that pushes authors toward
-simpler, more linear workflows, not treated as a bug to fix later.
+non-pass" into a real dependency graph: a `depends_on` field per step,
+short-circuiting to `wait` based on declared edges instead of list
+position, *and* evaluating every step every run. Split in two at the
+time and both halves rejected together; only one half stayed rejected.
+
+- The `depends_on`/graph half is still rejected: steps stay a **plain
+  ordered list**, no DAG, no per-step dependency declarations. That
+  keeps table-column order stable (declaration order) and test
+  authoring simple — correctly modeling forks/joins was never worth
+  the added authoring/data-flow complexity for this library's actual
+  use case (hand-written migration checks, not a build system).
+- The "evaluate every step every run" half was re-litigated and
+  **adopted** 2026-09-22 — see "Every step always runs" above. The
+  original reasoning for rejecting it ("a step that doesn't really
+  depend on its immediate predecessor still gets gated behind it,
+  accepted as a guardrail toward simpler workflows") didn't survive
+  contact with a real progressive test: hiding a later step's true,
+  already-reachable state behind an earlier stalled one actively hid
+  information a fully-testable-from-the-start design is supposed to
+  surface. Losing the old "short-circuit protects you from missing
+  data" guarantee is accepted as the cost — see "Every step always
+  runs" above for what replaces it (ordinary step-author-written
+  guards, no library helper).
 
 ## Resolution of `python-library-notes.md`, item by item
 
-- **0 (DAG/fork-join generalization):** Rejected — see above.
+- **0 (DAG/fork-join generalization):** Split. The `depends_on`/graph
+  half stays rejected; the "evaluate every step every run" half was
+  adopted 2026-09-22 — see "Rejected: DAG/dependency generalization"
+  above.
 - **1 (two faces: function + CLI):** Adopted, in a different shape than
   proposed. A step is a plain decorated function called via `invoke()`
   inside an ordinary `test_*` function; the "CLI face" is the bundled
