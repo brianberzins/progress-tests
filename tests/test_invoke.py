@@ -52,7 +52,7 @@ def test_invoke_defaults_to_a_single_implicit_input_when_none_given():
     assert seen == [{}]
 
 
-def test_invoke_stops_at_the_frontier_step_for_that_input():
+def test_invoke_stops_at_the_first_non_passing_step_for_that_input():
     calls = []
 
     @step("BUCKET_EXISTS")

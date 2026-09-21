@@ -33,13 +33,6 @@ progressive test is a long-lived assertion of the final desired state,
 not a disposable migration artifact — it keeps running in CI after the
 state it verifies is reached.
 
-## Frontier Step
-
-For a given input, the first step in the sequence that is not `pass` on
-a given run. Evaluated independently per input: a progressive test with
-several inputs generally has several frontier steps at once, one per
-input, even though each input's own steps are a strict linear sequence.
-
 ## Progressive Table Test
 
 The rendering of a progressive test's results as a grid: one row per

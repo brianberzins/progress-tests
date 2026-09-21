@@ -15,12 +15,12 @@ def invoke(
     """Run `steps`, in order, against each input in `inputs`.
 
     Each input is evaluated independently: steps run in order until one
-    doesn't return `Status.PASS` (that input's frontier step), and any
-    steps after it are left blank for that input rather than evaluated.
+    doesn't return `Status.PASS`, and any steps after it are left blank
+    for that input rather than evaluated.
 
     Renders a single color-coded table (one row per input, one column
     per step) to stdout, then raises `AssertionError` if any input's
-    frontier step is `Status.FAIL`, or `Status.WAIT` when
+    evaluation stopped on `Status.FAIL`, or `Status.WAIT` when
     `fail_on_wait=True`.
     """
     step_names = _validate_steps(steps)
@@ -32,9 +32,9 @@ def invoke(
     rows: list[tuple[str, dict[str, Status]]] = []
     failing_labels: list[str] = []
     for label, case in zip(labels, inputs, strict=True):
-        statuses, frontier = _evaluate(steps, case)
+        statuses, outcome = _evaluate(steps, case)
         rows.append((label, statuses))
-        if frontier is Status.FAIL or (frontier is Status.WAIT and fail_on_wait):
+        if outcome is Status.FAIL or (outcome is Status.WAIT and fail_on_wait):
             failing_labels.append(label)
 
     print(render_table(step_names, rows, use_color=color_enabled()))
@@ -51,17 +51,17 @@ def _evaluate(
 ) -> tuple[dict[str, Status], Status]:
     case: dict[str, Any] = dict(original_case)
     statuses: dict[str, Status] = {}
-    frontier = Status.PASS
+    outcome = Status.PASS
     for s in steps:
         # A step gets a read-only view of the accumulated case -- mutating
         # it directly raises (caught by @step, reported as Status.FAIL)
         # rather than silently bypassing the overwrite check in _merge.
-        frontier, data = s(MappingProxyType(case))
-        statuses[s.step_name] = frontier
-        if frontier is not Status.PASS:
+        outcome, data = s(MappingProxyType(case))
+        statuses[s.step_name] = outcome
+        if outcome is not Status.PASS:
             break
         _merge(case, data, s.step_name)
-    return statuses, frontier
+    return statuses, outcome
 
 
 def _merge(case: dict[str, Any], data: dict[str, Any], step_name: str) -> None:

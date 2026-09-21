@@ -106,8 +106,8 @@ def test_migration():
   the whole list is visible, unlike the decorator's per-function
   checks): rejects duplicate `STEP_NAME`s, and rejects duplicate input
   names, since both would produce ambiguous table identifiers.
-- For each input independently: walks `steps` in order, stopping at
-  that input's frontier step. Steps after the frontier are not
+- For each input independently: walks `steps` in order, stopping at the
+  first step that isn't `Status.PASS`. Steps after that point are not
   evaluated for that input and render as blank cells.
 - Input row label is `input["name"]`, falling back to `input[{i}]`
   (by position) when `"name"` is absent.
@@ -118,7 +118,8 @@ def test_migration():
 - Color auto-detects and is **not configurable**: off if
   `sys.stdout.isatty()` is false, or `NO_COLOR`/`CI` env vars are set;
   on otherwise.
-- Pass/fail policy, per input's frontier step:
+- Pass/fail policy, per input, based on the status where evaluation
+  stopped:
   - `pass` — fine.
   - `wait` — does not fail the test, by default. This is the expected,
     common state for an in-progress migration.
