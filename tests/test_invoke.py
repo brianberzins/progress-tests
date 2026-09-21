@@ -210,7 +210,7 @@ def test_invoke_prints_a_header_naming_input_and_each_step(capsys):
     invoke([bucket_exists, dns_cutover], [{"name": "instance-a"}])
 
     header = capsys.readouterr().out.splitlines()[0]
-    assert "INPUT" in header
+    assert "NAME" in header
     assert "BUCKET_EXISTS" in header
     assert "DNS_CUTOVER" in header
 

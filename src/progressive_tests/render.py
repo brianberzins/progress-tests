@@ -26,10 +26,10 @@ def render_table(
     use_color: bool,
 ) -> str:
     status_word_width = max(len(s.name) for s in Status)
-    label_width = max((len(label) for label, _ in rows), default=len("INPUT"))
+    label_width = max((len(label) for label, _ in rows), default=len("NAME"))
     column_widths = {name: max(len(name), status_word_width) for name in step_names}
 
-    header = f"{'INPUT':<{label_width}}"
+    header = f"{'NAME':<{label_width}}"
     for name in step_names:
         header += _GUTTER + f"{name:<{column_widths[name]}}"
     lines = [header]
