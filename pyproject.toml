@@ -3,6 +3,8 @@ name = "progress-tests"
 version = "0.1.0"
 description = "Write progressive tests: ordered, deterministic checks that track and document real-world progress toward a desired state."
 readme = "README.md"
+license = "0BSD"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = []
 
