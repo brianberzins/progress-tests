@@ -39,11 +39,34 @@ What it keeps from testing is the purpose: fast, clear feedback. The
 feedback is about progress through the real world, not about whether
 code works.
 
-Steps tend to be found by running the workflow against one example
-input first: a check gets added when one turns out to be missing, and
-split when it turns out to hold two facts. The same shape also works
-for exploratory checks, and for assessing the current state of many
-things with several properties each.
+The same shape also works for exploratory checks, and for assessing
+the current state of many things with several properties each.
+
+### How one gets built
+
+Building a progressive test runs two test-driven loops.
+
+The outer loop is ordinary TDD. Start from the current state, then
+write the end-state step first: the check that the workflow is done.
+This is where inputs get chosen. Everything the end state needs has to
+be known now; if defining it requires a value some intermediate step
+would produce, the end state can't be described up front, and the test
+can't drive the work.
+
+The inner loop decomposes the workflow into the smallest steps
+possible, the way a refactor does: duplicate a method, show both
+behave the same, cut over to the new one, delete the old. Each of
+those is an intentional intermediate state. For each piece:
+
+- "How will I know it's done?" is the step's check, and `PASS`.
+- "Can I tell how far along it is?" is the `WAIT` message.
+- Any terminal state that isn't the desired one is `FAIL`.
+
+Unlike classic TDD, an intermediate state may need no further action,
+only time. A rolling deployment under a plain pass/fail check looks
+like a failure until it's suddenly done; as a step, it can show how
+much traffic has shifted, or how many instances run the new version,
+while it moves.
 
 ## Usage
 
