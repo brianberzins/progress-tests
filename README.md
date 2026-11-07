@@ -1,13 +1,49 @@
 # progress-tests
 
 A library for writing progressive tests: ordered, deterministic checks
-that track and document real-world progress toward a desired state
-(e.g. a migration, a phased rollout). A fully-passing progressive test
-is a long-lived test of the final desired state, not a disposable
-migration artifact.
+that show where a multi-step workflow (e.g. a migration, a phased
+rollout) currently stands.
 
 See `docs/design/progress-tests-library.md` for the full design and
 `docs/LANGUAGE.md` for terminology.
+
+## Between a progress report and a test
+
+A progressive test's main job is to show progress through a multi-step
+workflow while the work is underway. Asked "how far along is it?", you
+run the test, and the table answers: which step each input has reached,
+and whether anything has gone wrong. It sits between a progress report
+and a test. Like a report, it describes where things stand. Like a
+test, every step is a deterministic check of real state, and the run
+exits non-zero when a step fails, so the answer can be rerun and
+trusted rather than recalled or estimated.
+
+That position is why it breaks several usual testing practices on
+purpose:
+
+- **It checks live, external state.** The state of the systems doing
+  the work is the thing being reported on; a mocked or isolated check
+  couldn't see it.
+- **It can be slow.** Its steps reach out to those systems, and the
+  work it tracks can take hours or days.
+- **It has three outcomes, not two.** `WAIT` means "not done yet, but
+  on track", the most common and most useful answer while work is in
+  flight. Pass/fail alone would report a correctly progressing workflow
+  as a failure. Only `FAIL`, a terminal state that won't resolve by
+  waiting, fails the test.
+- **Its steps branch.** Every step runs on every run, so a step has to
+  check whether the things it builds on have happened yet before
+  judging its own fact.
+
+What it keeps from testing is the purpose: fast, clear feedback. The
+feedback is about progress through the real world, not about whether
+code works.
+
+Steps tend to be found by running the workflow against one example
+input first: a check gets added when one turns out to be missing, and
+split when it turns out to hold two facts. The same shape also works
+for exploratory checks, and for assessing the current state of many
+things with several properties each.
 
 ## Usage
 

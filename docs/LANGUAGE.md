@@ -31,10 +31,9 @@ never resolved silently.
 ## Progressive Test
 
 An ordered sequence of steps, every one of which is evaluated for each
-input regardless of any other step's result. A fully-passing
-progressive test is a long-lived assertion of the final desired state,
-not a disposable migration artifact — it keeps running in CI after the
-state it verifies is reached.
+input regardless of any other step's result. It shows where a
+multi-step workflow currently stands: a progress report whose checks
+are deterministic and whose run exits non-zero on a terminal failure.
 
 ## Progressive Table Test
 
