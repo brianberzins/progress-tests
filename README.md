@@ -79,11 +79,6 @@ survives being piped through something like `watch --color`). Pass
 `--no-color`, or set the `NO_COLOR` environment variable, to suppress
 it.
 
-Color is on by default (even when stdout isn't a terminal, so it
-survives being piped through something like `watch --color`). Pass
-`--no-color`, or set the `NO_COLOR` environment variable, to suppress
-it.
-
 A step can also return a value for later steps on the same input to
 use, alongside its `Status`:
 
