@@ -49,6 +49,18 @@ By default, `WAIT` doesn't fail the test (it's the expected state for
 something still in progress); `FAIL` always does. Pass
 `fail_on_wait=True` to `invoke()` to also fail on `WAIT`.
 
+Inputs run in parallel, on threads: by default every input starts at
+once, so a run takes about as long as its slowest input. Each input's
+own steps still run in order, and the table always lists inputs in the
+order given. Pass `parallelism=N` to run at most `N` inputs at a time
+(`parallelism=1` runs them one after another), e.g. to stay under a
+rate limit when there are many inputs. Since the same step can run for
+several inputs at once, keep per-input state in `case` (pass it between
+steps as returned data) rather than in module-level variables or
+process-wide state like the working directory or environment, and
+report through `Status` messages rather than `print()`, which
+interleaves across inputs. `inputs` must not be empty.
+
 Since every step runs regardless of earlier results, a step that reads
 data an earlier step would have contributed (via its `PASS` return's
 data dict) needs to guard against that data being absent — check for

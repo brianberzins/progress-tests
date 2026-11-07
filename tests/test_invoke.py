@@ -1,4 +1,5 @@
 import sys
+import threading
 
 import pytest
 
@@ -50,6 +51,60 @@ def test_invoke_defaults_to_a_single_implicit_input_when_none_given():
     invoke([exists])
 
     assert seen == [{}]
+
+
+def test_invoke_rejects_empty_inputs():
+    @step("EXISTS")
+    def exists(case):
+        return Status.PASS("ok")
+
+    with pytest.raises(ValueError, match="inputs must not be empty"):
+        invoke([exists], [])
+
+
+def test_invoke_runs_every_input_at_once_by_default():
+    barrier = threading.Barrier(3, timeout=5)
+
+    @step("TOGETHER")
+    def together(case):
+        barrier.wait()
+        return Status.PASS("ok")
+
+    invoke([together], [{"name": "a"}, {"name": "b"}, {"name": "c"}])
+
+
+def test_invoke_runs_inputs_one_at_a_time_when_parallelism_is_one(capsys):
+    barrier = threading.Barrier(2, timeout=0.1)
+
+    @step("TOGETHER")
+    def together(case):
+        barrier.wait()
+        return Status.PASS("ok")
+
+    with pytest.raises(AssertionError):
+        invoke([together], [{"name": "a"}, {"name": "b"}], parallelism=1)
+
+    assert "BrokenBarrierError" in capsys.readouterr().out
+
+
+def test_invoke_prints_rows_in_input_order_regardless_of_finish_order(capsys):
+    second_finished = threading.Event()
+
+    @step("ORDER")
+    def order(case):
+        case["act"]()
+        return Status.PASS("ok")
+
+    invoke(
+        [order],
+        [
+            {"name": "first", "act": lambda: second_finished.wait(timeout=5)},
+            {"name": "second", "act": second_finished.set},
+        ],
+    )
+
+    labels = [line.split()[0] for line in capsys.readouterr().out.splitlines()[1:]]
+    assert labels == ["first", "second"]
 
 
 def test_invoke_runs_every_step_even_after_an_earlier_wait():

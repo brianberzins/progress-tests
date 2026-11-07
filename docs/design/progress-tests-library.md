@@ -169,7 +169,7 @@ def test_migration():
     invoke(steps, inputs, fail_on_wait=True)
 ```
 
-- `invoke(steps, inputs, fail_on_wait=False)` is called once inside an
+- `invoke(steps, inputs, fail_on_wait=False, parallelism=None)` is called once inside an
   ordinary, no-argument `test_*` function. `steps` and `inputs` are
   local to that test function, not module-level globals — step
   functions themselves stay at module scope so they can be reused
@@ -188,6 +188,17 @@ def test_migration():
 - For each input independently: walks `steps` in order, evaluating
   every one regardless of any other step's result — see "Every step
   always runs" below.
+- Inputs run in parallel on a thread pool; each input's steps stay
+  sequential, since a step can read data an earlier one returned.
+  Steps are typically I/O-bound (subprocess and network calls), so
+  threads fit. `parallelism` caps how many inputs run at once and
+  defaults to `len(inputs)`, so every input starts immediately and a
+  run takes about as long as its slowest input; the executor's own
+  default (`min(32, cpu_count + 4)`) is sized for CPU-bound work and
+  would batch large input lists for no benefit. Rows, the "did not
+  pass" summary, and tracebacks all stay in input order regardless of
+  finish order. Empty `inputs` raises `ValueError`: a progressive test
+  with nothing to check is a mistake, not a pass.
 - Input row label is `input["name"]`, falling back to `input[{i}]`
   (by position) when `"name"` is absent.
 - Renders one color-coded table to stdout: one row per input, one
@@ -366,8 +377,10 @@ time and both halves rejected together; only one half stayed rejected.
   `progress-tests` runner (discovery + invocation), not per-step CLI
   flags. See "Runner: from pytest to a custom console script" above.
 - **2 (real enum internally):** Adopted. `Status.PASS`/`WAIT`/`FAIL`.
-- **3 (parallelize rows by default):** Dropped. `invoke()` runs inputs
-  sequentially; there's no CLI/watch mode to make this matter yet.
+- **3 (parallelize rows by default):** Adopted 2026-11-07, after
+  initially being dropped. Sequential runs grew with the input count
+  for I/O-bound steps; see the parallelism bullet under "`invoke()` —
+  the engine" above.
 - **4 (--watch stdout flush):** N/A. No `--watch` mode; `invoke()` is a
   synchronous library call, not a long-running CLI process.
 - **5 (structured config format):** N/A. Inputs are plain Python data

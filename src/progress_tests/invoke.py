@@ -1,4 +1,5 @@
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from types import MappingProxyType
 from typing import Any
 
@@ -11,17 +12,24 @@ def invoke(
     steps: list[Step],
     inputs: list[Case] | None = None,
     fail_on_wait: bool = False,
+    parallelism: int | None = None,
 ) -> None:
     step_names = _validate_steps(steps)
     if inputs is None:
         inputs = [{}]
+    if not inputs:
+        raise ValueError("inputs must not be empty")
     labels = _labels_for(inputs)
     _validate_labels(labels)
 
+    if parallelism is None:
+        parallelism = len(inputs)
+    with ThreadPoolExecutor(max_workers=parallelism) as pool:
+        results = list(pool.map(lambda case: _evaluate(steps, case), inputs))
+
     rows: list[tuple[str, dict[str, Status]]] = []
     failing_labels: list[str] = []
-    for label, case in zip(labels, inputs, strict=True):
-        statuses = _evaluate(steps, case)
+    for label, statuses in zip(labels, results, strict=True):
         rows.append((label, statuses))
         kinds = {s.kind for s in statuses.values()}
         if _Kind.FAIL in kinds or (_Kind.WAIT in kinds and fail_on_wait):
