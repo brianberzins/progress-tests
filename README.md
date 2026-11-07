@@ -68,6 +68,12 @@ like a failure until it's suddenly done; as a step, it can show how
 much traffic has shifted, or how many instances run the new version,
 while it moves.
 
+The test keeps changing once it exists. Running it against real work
+shows what it's missing: a check that turns out to hold two facts gets
+split in two, a piece of information you wished you'd had gets its own
+check, and a terminal state you hadn't anticipated gets a check that
+reports it as `FAIL` instead of an endless `WAIT`.
+
 ## Usage
 
 ```python
