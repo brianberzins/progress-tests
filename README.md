@@ -70,10 +70,10 @@ while it moves.
 
 The test can change. Executing the workflow sometimes uncovers things
 that were missed, and the test changes to capture the new information:
-a check that turns out to hold two facts gets
-split in two, a piece of information you wished you'd had gets its own
-check, and a terminal state you hadn't anticipated gets a check that
-reports it as `FAIL` instead of an endless `WAIT`.
+a check that turns out to hold two facts gets split in two, a piece of
+information you wished you'd had gets its own check, and a terminal
+state you hadn't anticipated gets a check that reports it as `FAIL`
+instead of an endless `WAIT`.
 
 ## Usage
 
@@ -184,6 +184,74 @@ code unless you mean that exact message too.
 `"assert fail"` for an `AssertionError`, `"exception"` for anything
 else. Either way, the full traceback isn't lost — it prints once,
 after the whole table, rather than interleaved with it.
+
+## Writing good steps
+
+**Check live state, not a status label.** A step runs a real check,
+fresh every run, against the thing itself: a DNS lookup, an HTTP
+response, a call to a live API, the file on disk. Never a field copied
+from a plan or config that says the work is done, and never a proxy
+("the resource is named in the repo" is not "the resource exists").
+Two runs that both show `PASS` mean the same real condition was
+confirmed both times.
+
+**Compare live signals, not constants.** Where possible, check "does
+live signal A match live signal B" rather than "does A match a value I
+wrote down." A hardcoded expected value goes stale, and can be wrong
+for one input even when the rest look uniform. In the example,
+`ROLLED_OUT` compares each instance's version against the version the
+`VERSION` step read, not against a constant.
+
+**One fact per step.** A step that ANDs several independent conditions
+has to summarize them, and "not ready" doesn't say which one is the
+blocker. Give each fact its own step and column; a later step can then
+depend on exactly the fact it needs. The exception is a large fan-out
+of the same kind of thing (many instances, many files): keep that as
+one step with a count.
+
+**Counts and terminal states.** A step with a count or percentage from
+the thing itself reports `PASS` at `y/y` or `100%`, and `WAIT` below
+that, with the count as its message (`! 2/5`). It's `FAIL` only when
+the thing has reached a state it won't progress out of. `0/0` is
+`PASS`: with nothing to do, it's done.
+
+**Short messages; details after the table.** A message should read at
+a glance across a row: a count, a short word, a percentage. Anything
+longer, such as which of several items is behind, goes in `detail`,
+which prints once after the table, labeled by input and step:
+
+```python
+return Status.WAIT("2/3", detail="instance 1: v1, want v3\n")
+```
+
+A message that needs to summarize several sub-failures is a sign the
+step should be split, or its per-item breakdown moved to `detail`.
+
+**Every cell has a status.** A step that doesn't apply to an input
+returns `Status.PASS("n/a")`, a real, reported state, rather than
+being left out.
+
+**Read-only and idempotent.** A run only reads state; it never creates,
+changes, or consumes anything. Two runs in a row with nothing changed
+in between give the same table.
+
+**One test per mechanism.** When the same conceptual step is checked
+in genuinely different ways for different kinds of input (a database,
+a queue, a bucket), write one test per kind rather than one test that
+branches on a `kind` field. Steps that really are identical go in
+shared functions each test imports. A new kind is then new code in a
+new file, never a new branch in an old one, and each kind's inputs live
+as data rather than code.
+
+**Fix inputs at the start.** Every input is known when the workflow
+starts. If a step creates a value that a later step needs (a PR URL, a
+generated ID), that's a boundary: end this test at that step, and start
+another workflow's test with the value as its input. Inside one test,
+pass the value forward as step data.
+
+**The table is the answer to "where are we?"** When picking work back
+up, run the test and resume from whatever isn't `PASS`, rather than
+reconstructing progress from memory, history, or another tracker.
 
 ## Dependencies
 

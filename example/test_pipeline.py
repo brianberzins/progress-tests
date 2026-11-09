@@ -41,6 +41,24 @@ def version_upgraded(case) -> Status:
     return Status.PASS(f"v{version}")
 
 
+@step("ROLLED_OUT")
+def instances_rolled_out(case) -> Status:
+    if "version" not in case:
+        return Status.WAIT("no version")
+    instances = _fields(case["name"]).get("instances")
+    if instances is None:
+        return Status.WAIT("missing")
+    versions = [int(v) for v in instances.split(",")]
+    lagging = [i for i, v in enumerate(versions) if v != case["version"]]
+    rolled_out = f"{len(versions) - len(lagging)}/{len(versions)}"
+    if lagging:
+        detail = "".join(
+            f"instance {i}: v{versions[i]}, want v{case['version']}\n" for i in lagging
+        )
+        return Status.WAIT(rolled_out, detail=detail)
+    return Status.PASS(rolled_out)
+
+
 @step("HEALTHY")
 def is_healthy(case) -> Status:
     healthy = _fields(case["name"]).get("healthy")
@@ -50,10 +68,17 @@ def is_healthy(case) -> Status:
 
 
 def test_pipeline():
-    steps = [file_exists, version_parsed, version_upgraded, is_healthy]
+    steps = [
+        file_exists,
+        version_parsed,
+        version_upgraded,
+        instances_rolled_out,
+        is_healthy,
+    ]
     inputs = [
         {"name": "not-started"},
         {"name": "below-minimum"},
+        {"name": "rolling-out"},
         {"name": "complete"},
     ]
     invoke(steps, inputs)
