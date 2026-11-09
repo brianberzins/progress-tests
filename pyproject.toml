@@ -1,6 +1,6 @@
 [project]
 name = "progress-tests"
-version = "1.0.0"
+version = "1.1.0"
 description = "Write progressive tests: ordered, deterministic checks that track and document real-world progress toward a desired state."
 readme = "README.md"
 license = "0BSD"
