@@ -4,6 +4,8 @@ A library for writing progressive tests: ordered, deterministic checks
 that show where a multi-step workflow (e.g. a migration, a phased
 rollout) currently stands.
 
+![A progressive test's table moving from waiting to passing as three apps roll out](docs/demo/progress.gif)
+
 See `docs/design/progress-tests-library.md` for the full design and
 `docs/LANGUAGE.md` for terminology.
 
