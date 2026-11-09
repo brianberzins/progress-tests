@@ -28,14 +28,19 @@ FAILED_STATES = {"FAILURE", "ERROR"}
 
 
 def gh_json(*args):
-    result = subprocess.run(["gh", *args], check=True, capture_output=True, text=True)
+    result = subprocess.run(["gh", *args], capture_output=True, text=True)
+    if result.returncode:
+        raise RuntimeError(f"gh {' '.join(args)} failed: {result.stderr}")
     return json.loads(result.stdout)
 
 
 @step("AGE")
 def age(case) -> tuple[Status, dict]:
-    pr = gh_json("pr", "view", case["name"], "--json", PR_FIELDS)
-    opened = datetime.fromisoformat(pr["createdAt"])
+    try:
+        pr = gh_json("pr", "view", case["name"], "--json", PR_FIELDS)
+    except RuntimeError:
+        return Status.FAIL("gh error"), {}
+    opened = datetime.fromisoformat(pr["createdAt"].replace("Z", "+00:00"))
     open_for = datetime.now(timezone.utc) - opened
     if open_for.days:
         return Status.PASS(f"{open_for.days}d"), {"pr": pr}
@@ -72,18 +77,37 @@ def ci(case) -> Status:
     return Status.PASS(f"{done}/{len(checks)}")
 
 
-@step("READY")
-def ready(case) -> Status:
+@step("CONFLICTS")
+def conflicts(case) -> Status:
     if "pr" not in case:
         return Status.FAIL("no PR")
-    pr = case["pr"]
-    if pr["mergeable"] == "CONFLICTING":
+    mergeable = case["pr"]["mergeable"]
+    if mergeable == "CONFLICTING":
         return Status.FAIL("conflicts")
-    if pr["isDraft"]:
+    if mergeable == "UNKNOWN":
+        return Status.WAIT("unknown")
+    return Status.PASS("none")
+
+
+@step("DRAFT")
+def draft(case) -> Status:
+    if "pr" not in case:
+        return Status.FAIL("no PR")
+    if case["pr"]["isDraft"]:
         return Status.WAIT("draft")
-    if pr["mergeStateStatus"] == "BEHIND":
-        return Status.WAIT("behind")
     return Status.PASS("ready")
+
+
+@step("BEHIND")
+def behind(case) -> Status:
+    if "pr" not in case:
+        return Status.FAIL("no PR")
+    merge_state = case["pr"]["mergeStateStatus"]
+    if merge_state == "BEHIND":
+        return Status.WAIT("behind")
+    if merge_state == "UNKNOWN":
+        return Status.WAIT("unknown")
+    return Status.PASS("current")
 
 
 @step("REVIEW")
@@ -121,4 +145,5 @@ def test_org_prs():
         print(f"no open PRs in {org}")
         return
     inputs = [{"name": url} for url in urls]
-    invoke([age, author, ci, ready, review], inputs, parallelism=10, show_details=False)
+    steps = [age, author, ci, conflicts, draft, behind, review]
+    invoke(steps, inputs, parallelism=10, show_details=False)
