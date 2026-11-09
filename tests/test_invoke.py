@@ -519,3 +519,43 @@ def test_invoke_shows_a_custom_message_instead_of_the_default_status_word(capsys
 
     out = capsys.readouterr().out
     assert "waiting on backup" in out
+
+
+def test_invoke_omits_details_after_the_table_when_show_details_is_off(capsys):
+    @step("CHECK")
+    def check(case):
+        return Status.WAIT("2/3", detail="instance 1: v1, want v2+\n")
+
+    invoke([check], [{"name": "instance-a"}], show_details=False)
+
+    out = capsys.readouterr().out
+    assert "instance-a / CHECK:" not in out
+    assert "instance 1: v1, want v2+" not in out
+
+
+def test_invoke_omits_tracebacks_when_show_details_is_off(capsys):
+    @step("EXPLODES")
+    def explodes(case):
+        raise RuntimeError("simulated failure for this test")
+
+    with pytest.raises(AssertionError):
+        invoke([explodes], [{"name": "instance-a"}], show_details=False)
+
+    out = capsys.readouterr().out
+    assert "X exception" in out
+    assert "Traceback" not in out
+
+
+def test_invoke_omits_failing_input_names_when_show_details_is_off():
+    @step("CHECK")
+    def check(case):
+        return Status.FAIL("boom")
+
+    with pytest.raises(AssertionError) as raised:
+        invoke(
+            [check],
+            [{"name": "instance-a"}, {"name": "instance-b"}],
+            show_details=False,
+        )
+
+    assert str(raised.value) == "2 of 2 input(s) did not pass (see table above)"

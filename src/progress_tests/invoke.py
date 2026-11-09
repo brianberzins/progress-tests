@@ -13,6 +13,7 @@ def invoke(
     inputs: list[Case] | None = None,
     fail_on_wait: bool = False,
     parallelism: int | None = None,
+    show_details: bool = True,
 ) -> None:
     step_names = _validate_steps(steps)
     if inputs is None:
@@ -36,13 +37,14 @@ def invoke(
             failing_labels.append(label)
 
     print(render_table(step_names, rows, use_color=color_enabled()))
-    _print_details(rows)
+    if show_details:
+        _print_details(rows)
 
     if failing_labels:
-        raise AssertionError(
-            f"{len(failing_labels)} of {len(rows)} input(s) did not pass: "
-            f"{', '.join(failing_labels)} (see table above)"
-        )
+        summary = f"{len(failing_labels)} of {len(rows)} input(s) did not pass"
+        if show_details:
+            summary += f": {', '.join(failing_labels)}"
+        raise AssertionError(f"{summary} (see table above)")
 
 
 def _evaluate(steps: list[Step], original_case: Case) -> dict[str, Status]:

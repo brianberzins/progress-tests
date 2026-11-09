@@ -187,6 +187,11 @@ code unless you mean that exact message too.
 else. Either way, the full traceback isn't lost — it prints once,
 after the whole table, rather than interleaved with it.
 
+When the table itself is the point, such as a large grid read for its
+overall shape, pass `show_details=False` to `invoke()`. Only the table
+prints: no details or tracebacks after it, and the failure summary
+gives a count without naming the inputs.
+
 ## Writing good steps
 
 **Check live state, not a status label.** A step runs a real check,

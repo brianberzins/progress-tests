@@ -139,6 +139,12 @@ equality.
   Available to any step, not just the framework's own exception
   handling — `Status.FAIL("bucket missing", detail="...")` is a
   supported call.
+- **`show_details=False`**: added 2026-11-09 for tests read as a large
+  grid, where the table's overall shape is the point and the details
+  and failing-input list below it are noise. Drops both: no `detail`
+  sections print, and the "did not pass" summary keeps its count but
+  not the input names. Per-`invoke()`, not a CLI flag, since it's a
+  property of the test (a visualization) rather than of one run.
 
 ## `invoke()` — the engine
 
@@ -169,7 +175,8 @@ def test_migration():
     invoke(steps, inputs, fail_on_wait=True)
 ```
 
-- `invoke(steps, inputs, fail_on_wait=False, parallelism=None)` is called once inside an
+- `invoke(steps, inputs, fail_on_wait=False, parallelism=None,
+  show_details=True)` is called once inside an
   ordinary, no-argument `test_*` function. `steps` and `inputs` are
   local to that test function, not module-level globals — step
   functions themselves stay at module scope so they can be reused
