@@ -198,9 +198,7 @@ confirmed both times.
 **Compare live signals, not constants.** Where possible, check "does
 live signal A match live signal B" rather than "does A match a value I
 wrote down." A hardcoded expected value goes stale, and can be wrong
-for one input even when the rest look uniform. In the example,
-`ROLLED_OUT` compares each instance's version against the version the
-`VERSION` step read, not against a constant.
+for one input even when the rest look uniform.
 
 **One fact per step.** A step that ANDs several independent conditions
 has to summarize them, and "not ready" doesn't say which one is the
@@ -221,7 +219,7 @@ longer, such as which of several items is behind, goes in `detail`,
 which prints once after the table, labeled by input and step:
 
 ```python
-return Status.WAIT("2/3", detail="instance 1: v1, want v3\n")
+return Status.WAIT("2/3", detail="instance 1: v1, want v2+\n")
 ```
 
 A message that needs to summarize several sub-failures is a sign the

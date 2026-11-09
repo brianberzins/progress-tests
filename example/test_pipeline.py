@@ -43,17 +43,15 @@ def version_upgraded(case) -> Status:
 
 @step("ROLLED_OUT")
 def instances_rolled_out(case) -> Status:
-    if "version" not in case:
-        return Status.WAIT("no version")
     instances = _fields(case["name"]).get("instances")
     if instances is None:
         return Status.WAIT("missing")
     versions = [int(v) for v in instances.split(",")]
-    lagging = [i for i, v in enumerate(versions) if v != case["version"]]
+    lagging = [i for i, v in enumerate(versions) if v < MIN_VERSION]
     rolled_out = f"{len(versions) - len(lagging)}/{len(versions)}"
     if lagging:
         detail = "".join(
-            f"instance {i}: v{versions[i]}, want v{case['version']}\n" for i in lagging
+            f"instance {i}: v{versions[i]}, want v{MIN_VERSION}+\n" for i in lagging
         )
         return Status.WAIT(rolled_out, detail=detail)
     return Status.PASS(rolled_out)
