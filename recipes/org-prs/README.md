@@ -12,8 +12,9 @@ unarchived repos, for working the list down to zero. One row per PR:
 - `BEHIND`: `WAIT` while the branch is behind its base.
 - `REVIEW`: the PR's review decision; `n/a` where review isn't required.
 
-`CONFLICTS` and `BEHIND` show `WAIT unknown` while GitHub is still
-computing mergeability, usually just after the base branch moves.
+GitHub computes a PR's mergeability only once it's asked for, so when
+it's unknown, `AGE` fetches the PR again a few seconds later.
+`CONFLICTS` and `BEHIND` show `WAIT unknown` if it's still unknown then.
 
 When the org has no open PRs, it prints that instead of a table. GitHub
 search returns at most 1,000 PRs, so a larger org's table leaves some

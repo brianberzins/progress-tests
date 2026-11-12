@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import time
 from datetime import datetime, timezone
 
 from progress_tests import Status, invoke, step
@@ -25,6 +26,8 @@ FAILED_CONCLUSIONS = {
     "STALE",
 }
 FAILED_STATES = {"FAILURE", "ERROR"}
+# GitHub computes a PR's mergeability only once it's asked for
+MERGEABILITY_COMPUTE_SECONDS = 3
 
 
 def gh_json(*args):
@@ -34,10 +37,18 @@ def gh_json(*args):
     return json.loads(result.stdout)
 
 
+def fetch_pr(url):
+    pr = gh_json("pr", "view", url, "--json", PR_FIELDS)
+    if pr["mergeable"] != "UNKNOWN":
+        return pr
+    time.sleep(MERGEABILITY_COMPUTE_SECONDS)
+    return gh_json("pr", "view", url, "--json", PR_FIELDS)
+
+
 @step("AGE")
 def age(case) -> tuple[Status, dict]:
     try:
-        pr = gh_json("pr", "view", case["name"], "--json", PR_FIELDS)
+        pr = fetch_pr(case["name"])
     except RuntimeError:
         return Status.FAIL("gh error"), {}
     opened = datetime.fromisoformat(pr["createdAt"].replace("Z", "+00:00"))
