@@ -6,7 +6,8 @@ unarchived repos, for working the list down to zero. One row per PR:
 - `AGE` and `AUTHOR`: information, not checks, shown uncolored. `AGE`
   also fetches the PR that every later step reads, and shows
   `FAIL gh error` when it can't.
-- `CI`: completed checks out of all checks; `FAIL` if any failed.
+- `CI`: completed checks out of all checks; `FAIL` if any failed, and
+  an uncolored `no CI` when the PR has no checks.
 - `CONFLICTS`: `FAIL` on merge conflicts.
 - `DRAFT`: `WAIT` while the PR is a draft.
 - `BEHIND`: `WAIT` while the branch is behind its base.

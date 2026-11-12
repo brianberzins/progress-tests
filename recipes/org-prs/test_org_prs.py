@@ -76,6 +76,8 @@ def ci(case) -> Status:
     if "pr" not in case:
         return Status.FAIL("no PR")
     checks = case["pr"]["statusCheckRollup"]
+    if not checks:
+        return Status.INFO("no CI")
     failed = sum(
         1
         for c in checks
