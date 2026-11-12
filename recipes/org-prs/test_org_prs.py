@@ -53,9 +53,15 @@ def age(case) -> tuple[Status, dict]:
         return Status.FAIL("gh error"), {}
     opened = datetime.fromisoformat(pr["createdAt"].replace("Z", "+00:00"))
     open_for = datetime.now(timezone.utc) - opened
-    if open_for.days:
-        return Status.INFO(f"{open_for.days}d"), {"pr": pr}
-    return Status.INFO(f"{open_for.seconds // 3600}h"), {"pr": pr}
+    return Status.INFO(format_duration(open_for)), {"pr": pr}
+
+
+def format_duration(duration):
+    if duration.days:
+        return f"{duration.days}d"
+    if duration.seconds >= 3600:
+        return f"{duration.seconds // 3600}h"
+    return f"{duration.seconds // 60}m"
 
 
 @step("AUTHOR")
