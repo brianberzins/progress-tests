@@ -35,3 +35,11 @@ def test_two_statuses_of_the_same_kind_and_message_are_equal():
 
 def test_two_statuses_with_different_messages_are_not_equal():
     assert Status.WAIT("waiting on backup") != Status.WAIT("waiting on restore")
+
+
+def test_info_is_a_kind_distinct_from_the_other_three():
+    assert len({_Kind.PASS, _Kind.WAIT, _Kind.FAIL, _Kind.INFO}) == 4
+
+
+def test_info_can_carry_a_message():
+    assert Status.INFO("v2.3").message == "v2.3"

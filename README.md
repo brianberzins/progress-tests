@@ -177,6 +177,11 @@ glyph. Keep it short — aim for well under 12 characters. It renders
 inline in a fixed-width table column, and a long one widens that
 column for every row.
 
+`Status.INFO` shows information that isn't a check, such as a
+version, in the terminal's default color with no glyph:
+`Status.INFO("v2.3")` renders as `v2.3`. It never fails the test, and
+data returned alongside it reaches later steps the same as with `PASS`.
+
 Two `Status`es are equal only when both their kind and message
 match — `Status.FAIL("boom") != Status.FAIL("other")` — so don't
 compare a step's result against a specific `Status` value in your own

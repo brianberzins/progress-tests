@@ -15,7 +15,8 @@ early on its behalf.
 
 ## Class
 
-The result of evaluating one step: `pass`, `wait`, or `fail`.
+The result of evaluating one step: `pass`, `wait`, or `fail`, or `info`
+for a step that reports information rather than checking a fact.
 
 ## Input
 

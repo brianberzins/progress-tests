@@ -64,3 +64,22 @@ def test_render_table_colors_a_message_the_same_as_its_status():
     )
 
     assert "\033[31mX boom" in table
+
+
+def test_cell_text_shows_an_info_message_without_a_glyph():
+    assert _cell_text(Status.INFO("v2.3")) == "v2.3"
+
+
+def test_cell_text_is_empty_for_an_info_status_with_no_message():
+    assert _cell_text(Status.INFO()) == ""
+
+
+def test_render_table_leaves_an_info_cell_uncolored():
+    table = render_table(
+        ["VERSION"],
+        [("instance-a", {"VERSION": Status.INFO("v2.3")})],
+        use_color=True,
+    )
+
+    assert "\033[" not in table
+    assert "v2.3" in table

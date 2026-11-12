@@ -2,7 +2,12 @@ import os
 
 from .status import Status, _Kind
 
-_GLYPH: dict[_Kind, str] = {_Kind.PASS: "+", _Kind.WAIT: "!", _Kind.FAIL: "X"}
+_GLYPH: dict[_Kind, str] = {
+    _Kind.PASS: "+",
+    _Kind.WAIT: "!",
+    _Kind.FAIL: "X",
+    _Kind.INFO: "",
+}
 _COLOR: dict[_Kind, str] = {
     _Kind.PASS: "\033[32m",
     _Kind.WAIT: "\033[33m",
@@ -46,15 +51,13 @@ def render_table(
 
 
 def _cell_text(status: Status) -> str:
-    if not status.message:
-        return _GLYPH[status.kind]
-    return f"{_GLYPH[status.kind]} {status.message}"
+    return " ".join(part for part in (_GLYPH[status.kind], status.message) if part)
 
 
 def _render_cell(status: Status | None, width: int, use_color: bool) -> str:
     if status is None:
         return " " * width
     text = f"{_cell_text(status):<{width}}"
-    if not use_color:
+    if not use_color or status.kind not in _COLOR:
         return text
     return f"{_COLOR[status.kind]}{text}{_RESET}"

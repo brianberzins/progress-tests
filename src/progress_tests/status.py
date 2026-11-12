@@ -6,6 +6,7 @@ class _Kind(Enum):
     PASS = auto()
     WAIT = auto()
     FAIL = auto()
+    INFO = auto()
 
 
 @dataclass(frozen=True)
@@ -25,3 +26,7 @@ class Status:
     @classmethod
     def FAIL(cls, message: str = "", detail: str | None = None) -> "Status":
         return cls(_Kind.FAIL, message, detail)
+
+    @classmethod
+    def INFO(cls, message: str = "", detail: str | None = None) -> "Status":
+        return cls(_Kind.INFO, message, detail)

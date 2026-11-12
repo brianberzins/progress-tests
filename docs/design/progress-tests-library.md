@@ -41,8 +41,9 @@ plus everything decided beyond it.
   outside the main gating chain (e.g. a stop-gap escalation that only
   fires if an earlier step stalls). Write those as ordinary code outside
   the library if needed.
-- `Status` stays exactly 3-valued **as a kind** — `PASS`/`WAIT`/`FAIL`.
-  No confidence/sampling annotation for checks that only sample live
+- `Status` has three check kinds — `PASS`/`WAIT`/`FAIL` — plus `INFO`
+  for information that isn't a check (see "Informational cells"
+  below). No confidence/sampling annotation for checks that only sample live
   state (e.g. a high-volume log stream) — the check author's own
   return value is the final word on what "pass" means for their check.
   Each kind carries an optional message and an optional detail; see
@@ -139,6 +140,16 @@ equality.
   Available to any step, not just the framework's own exception
   handling — `Status.FAIL("bucket missing", detail="...")` is a
   supported call.
+- **Informational cells**: added 2026-11-12. Before `INFO`, the only
+  way to show a value that isn't a check (a version, a region) was
+  `Status.PASS("v2.3")`, which colors it green and claims a fact was
+  verified. `Status.INFO` renders in the terminal's default color with
+  no glyph, so the cell is just its message, distinct from `PASS` even
+  under `--no-color`. It never fails the test, under any
+  `fail_on_wait`, and its returned data merges like `PASS` so a later
+  step can use the value it reported. Chosen as a kind rather than a
+  per-step `info=True` flag: simpler, and an informational step that
+  raises still shows `FAIL` the same as any other.
 - **`show_details=False`**: added 2026-11-09 for tests read as a large
   grid, where the table's overall shape is the point and the details
   and failing-input list below it are noise. Drops both: no `detail`

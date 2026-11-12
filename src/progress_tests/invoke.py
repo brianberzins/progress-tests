@@ -59,7 +59,7 @@ def _evaluate(steps: list[Step], original_case: Case) -> dict[str, Status]:
         # which @step already turns into Status.FAIL("exception", ...).
         outcome, data = s(MappingProxyType(case))
         statuses[s.step_name] = outcome
-        if outcome.kind == _Kind.PASS:
+        if outcome.kind in (_Kind.PASS, _Kind.INFO):
             _merge(case, data, s.step_name)
     return statuses
 

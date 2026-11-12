@@ -559,3 +559,28 @@ def test_invoke_omits_failing_input_names_when_show_details_is_off():
         )
 
     assert str(raised.value) == "2 of 2 input(s) did not pass (see table above)"
+
+
+def test_invoke_does_not_raise_on_info_even_when_fail_on_wait_is_set():
+    @step("VERSION")
+    def version(case):
+        return Status.INFO("v2.3")
+
+    invoke([version], [{"name": "instance-a"}], fail_on_wait=True)
+
+
+def test_invoke_passes_data_from_an_info_step_to_the_next():
+    seen_versions = []
+
+    @step("VERSION")
+    def version(case):
+        return Status.INFO("v2.3"), {"version": "v2.3"}
+
+    @step("UPGRADED")
+    def upgraded(case):
+        seen_versions.append(case["version"])
+        return Status.PASS()
+
+    invoke([version, upgraded], [{"name": "instance-a"}])
+
+    assert seen_versions == ["v2.3"]
