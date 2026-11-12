@@ -3,8 +3,9 @@
 A progressive test of every open pull request in a GitHub org or user's
 unarchived repos, for working the list down to zero. One row per PR:
 
-- `AGE` and `AUTHOR`: for reading the table. `AGE` also fetches the PR
-  that every later step reads, and shows `FAIL gh error` when it can't.
+- `AGE` and `AUTHOR`: information, not checks, shown uncolored. `AGE`
+  also fetches the PR that every later step reads, and shows
+  `FAIL gh error` when it can't.
 - `CI`: completed checks out of all checks; `FAIL` if any failed.
 - `CONFLICTS`: `FAIL` on merge conflicts.
 - `DRAFT`: `WAIT` while the PR is a draft.
@@ -25,13 +26,13 @@ Needs [uv](https://docs.astral.sh/uv/) and the
 Copy `test_org_prs.py` into an empty directory, and from there:
 
 ```bash
-ORG=<org> uvx --from git+https://github.com/brianberzins/progress-tests@v1.1.0 progress-tests .
+ORG=<org> uvx --from git+https://github.com/brianberzins/progress-tests@v1.2.0 progress-tests .
 ```
 
 To rerun it every 5 minutes:
 
 ```bash
-while true; do out="$(ORG=<org> uvx --from git+https://github.com/brianberzins/progress-tests@v1.1.0 progress-tests . 2>&1)"; clear; echo "$out"; sleep 300; done
+while true; do out="$(ORG=<org> uvx --from git+https://github.com/brianberzins/progress-tests@v1.2.0 progress-tests . 2>&1)"; clear; echo "$out"; sleep 300; done
 ```
 
 A plain loop rather than `watch` keeps long rows from being cut off at

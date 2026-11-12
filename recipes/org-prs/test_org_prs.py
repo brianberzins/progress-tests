@@ -43,15 +43,15 @@ def age(case) -> tuple[Status, dict]:
     opened = datetime.fromisoformat(pr["createdAt"].replace("Z", "+00:00"))
     open_for = datetime.now(timezone.utc) - opened
     if open_for.days:
-        return Status.PASS(f"{open_for.days}d"), {"pr": pr}
-    return Status.PASS(f"{open_for.seconds // 3600}h"), {"pr": pr}
+        return Status.INFO(f"{open_for.days}d"), {"pr": pr}
+    return Status.INFO(f"{open_for.seconds // 3600}h"), {"pr": pr}
 
 
 @step("AUTHOR")
 def author(case) -> Status:
     if "pr" not in case:
         return Status.FAIL("no PR")
-    return Status.PASS(case["pr"]["author"]["login"])
+    return Status.INFO(case["pr"]["author"]["login"])
 
 
 @step("CI")
